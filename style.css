@@ -43,3 +43,76 @@ canvas {
   border-radius: 16px;
   box-shadow: 0 0 60px rgba(120, 80, 255, 0.15);
 }
+
+.toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  align-items: center;
+  width: 100%;
+  max-width: 760px;
+}
+
+.tool-group {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.tool-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.5;
+  width: 4.5rem;
+  text-align: right;
+}
+
+.picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.pick {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.pick.active {
+  background: #e8e8f0;
+  color: #0b0b12;
+  border-color: #e8e8f0;
+}
+
+.swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.pick-name { margin-left: 0.35rem; }
+
+input[type="range"] {
+  width: 180px;
+  accent-color: #e8577e;
+  cursor: pointer;
+}
+
+.hint { font-size: 0.8rem; opacity: 0.45; }
+
+kbd {
+  background: #1c1c2b;
+  border: 1px solid #33334d;
+  border-radius: 4px;
+  padding: 0 0.35rem;
+  font-family: inherit;
+  font-size: 0.75rem;
+}

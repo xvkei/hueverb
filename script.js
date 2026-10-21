@@ -6,13 +6,24 @@ const fileInput = document.getElementById('fileInput');
 const clearBtn = document.getElementById('clearBtn');
 const saveBtn = document.getElementById('saveBtn');
 const statusEl = document.getElementById('status');
+const brushPicker = document.getElementById('brushPicker');
+const palettePicker = document.getElementById('palettePicker');
+const sizeSlider = document.getElementById('sizeSlider');
 
 // ---------- Settings you can tweak ----------
 const PAPER = '#f3eee4';        // canvas background color
 const SENSITIVITY = 1.6;        // lower = more strokes, higher = fewer (try 1.3–2.2)
 const MIN_GAP_MS = 120;         // minimum time between new strokes
 const MAX_STROKE_FRAMES = 240;  // longest a single stroke can flow (~4 seconds)
-const BRISTLES = 26;            // number of "hairs" in each brush
+const BRISTLES = 26;            // number of "hairs" in the oil brush
+
+const BRUSHES = [
+  { id: 'auto',       label: '✨ Auto',       hint: 'Let the sound choose the brush' },
+  { id: 'bristle',    label: '🖌️ Oil',        hint: 'Bristle brush with dry, streaky edges' },
+  { id: 'watercolor', label: '💧 Watercolor', hint: 'Soft, see-through washes' },
+  { id: 'ink',        label: '✒️ Ink',        hint: 'Calligraphy pen, thick and thin' },
+  { id: 'spray',      label: '🫧 Dots',       hint: 'Pointillism: strokes made of dots' }
+];
 
 // Artist-inspired palettes: deep colors first (low sounds), bright last (high sounds)
 const PALETTES = [
@@ -30,11 +41,14 @@ let audioEl = null;
 let micStream = null;
 let size = 600;
 let scale = 1;
-let style = {};
 let strokes = [];
 let liveStroke = null;
 let strokeCount = 0;
 let sourceLabel = 'Choose a sound source to begin';
+
+let currentBrush = 'auto';
+let paletteIndex = 0;
+let brushSize = 1;
 
 // sound tracking
 let fluxAvg = 0;
@@ -50,28 +64,73 @@ function hexToRgb(hex) {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
+PALETTES.forEach(p => (p.rgb = p.colors.map(hexToRgb)));
+
 function mix(c1, c2, t) {
   return c1.map((v, i) => Math.round(v + (c2[i] - v) * t));
 }
 
+function rgbStr(c) {
+  return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+}
+
 // Pick a palette color based on pitch, with some randomness for variety
 function pickColor(pitch) {
-  const p = style.colors;
+  const p = PALETTES[paletteIndex].rgb;
   const idx = clamp(Math.round(pitch * (p.length - 1) + (Math.random() - 0.5) * 1.5), 0, p.length - 1);
   return p[idx];
 }
 
-// Slightly lighter or darker version of a color, for natural streaks
+// Slightly lighter or darker version of a color, for natural variation
 function varyColor(rgb, amount) {
   const v = (Math.random() - 0.5) * amount;
-  const c = v > 0 ? mix(rgb, [255, 255, 255], v) : mix(rgb, [0, 0, 0], -v);
-  return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+  return rgbStr(v > 0 ? mix(rgb, [255, 255, 255], v) : mix(rgb, [0, 0, 0], -v));
 }
 
-// ---------- Style ----------
-function newStyle() {
-  const palette = PALETTES[Math.floor(Math.random() * PALETTES.length)];
-  style = { name: palette.name, colors: palette.colors.map(hexToRgb) };
+// ---------- Brush & palette pickers ----------
+function buildPickers() {
+  BRUSHES.forEach(b => {
+    const btn = document.createElement('button');
+    btn.className = 'pick';
+    btn.textContent = b.label;
+    btn.title = b.hint;
+    btn.dataset.id = b.id;
+    btn.addEventListener('click', () => setBrush(b.id));
+    brushPicker.appendChild(btn);
+  });
+
+  PALETTES.forEach((p, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'pick';
+    btn.title = p.name;
+    btn.dataset.index = i;
+    btn.innerHTML =
+      p.colors.map(c => `<span class="swatch" style="background:${c}"></span>`).join('') +
+      `<span class="pick-name">${p.name}</span>`;
+    btn.addEventListener('click', () => setPalette(i));
+    palettePicker.appendChild(btn);
+  });
+
+  refreshPickers();
+}
+
+function refreshPickers() {
+  brushPicker.querySelectorAll('.pick').forEach(b =>
+    b.classList.toggle('active', b.dataset.id === currentBrush)
+  );
+  palettePicker.querySelectorAll('.pick').forEach(b =>
+    b.classList.toggle('active', Number(b.dataset.index) === paletteIndex)
+  );
+}
+
+function setBrush(id) {
+  currentBrush = id;
+  refreshPickers();
+}
+
+function setPalette(i) {
+  paletteIndex = i;
+  refreshPickers();
 }
 
 // ---------- Canvas setup ----------
@@ -106,7 +165,7 @@ function addPaperGrain() {
 }
 
 function updateStatus() {
-  statusEl.textContent = `${sourceLabel} · 🎨 ${strokeCount} strokes · ${style.name} palette`;
+  statusEl.textContent = `${sourceLabel} · 🎨 ${strokeCount} strokes`;
 }
 
 // ---------- Audio setup ----------
@@ -145,7 +204,6 @@ async function startMic() {
   try {
     ensureAudio();
     stopCurrentSource();
-    newStyle();
     resetTracking();
     // turn off voice-call filters so claps, hums, and music come through naturally
     micStream = await navigator.mediaDevices.getUserMedia({
@@ -164,7 +222,6 @@ async function startMic() {
 function startFile(file) {
   ensureAudio();
   stopCurrentSource();
-  newStyle();
   resetTracking();
   audioEl = new Audio(URL.createObjectURL(file));
   source = audioCtx.createMediaElementSource(audioEl);
@@ -232,19 +289,18 @@ function analyze() {
   };
 }
 
-// ---------- Brush strokes ----------
-function createStroke(f) {
-  const margin = size * 0.1;
-  const x = margin + Math.random() * (size - margin * 2);
-  // high sounds start near the top, low sounds near the bottom
-  const y = clamp(
-    size * (0.85 - f.pitch * 0.7) + (Math.random() - 0.5) * size * 0.3,
-    margin, size - margin
-  );
+// ---------- Creating strokes ----------
+// In Auto mode, the character of the sound picks the brush
+function chooseBrush(f) {
+  if (currentBrush !== 'auto') return currentBrush;
+  if (f.roughness > 0.45) return 'spray';   // hissy/noisy -> dots
+  if (f.pitch > 0.62) return 'ink';         // high -> fine ink lines
+  if (f.loud < 0.45) return 'watercolor';   // soft -> washes
+  return 'bristle';                         // everything else -> oil
+}
 
-  const base = pickColor(f.pitch);
-  const load = 0.6 + f.loud * 0.4; // louder sounds load more paint onto the brush
-
+function makeBristles(x, y, base, f) {
+  const load = 0.6 + f.loud * 0.4; // louder sounds load more paint
   const bristles = [];
   for (let i = 0; i < BRISTLES; i++) {
     // average of 3 randoms clusters hairs toward the middle, like a real brush
@@ -259,31 +315,71 @@ function createStroke(f) {
       ly: y
     });
   }
+  return bristles;
+}
 
-  return {
-    x, y,
+function createStroke(f) {
+  const margin = size * 0.1;
+  const x = margin + Math.random() * (size - margin * 2);
+  // high sounds start near the top, low sounds near the bottom
+  const y = clamp(
+    size * (0.85 - f.pitch * 0.7) + (Math.random() - 0.5) * size * 0.3,
+    margin, size - margin
+  );
+
+  const brush = chooseBrush(f);
+  const base = pickColor(f.pitch);
+
+  const s = {
+    x, y, px: x, py: y,
+    brush,
     base,
     angle: Math.random() * Math.PI * 2,
     turn: (Math.random() - 0.5) * 0.06,
     roughness: f.roughness,
     width: 0,
     age: 0,
-    fade: -1,   // -1 = alive; otherwise counts down to 0
-    bristles
+    fade: -1 // -1 = alive; otherwise counts down to 0
   };
+
+  if (brush === 'bristle') s.bristles = makeBristles(x, y, base, f);
+  if (brush === 'watercolor') { s.color = rgbStr(base); s.wet = 1; }
+  if (brush === 'ink') { s.color = rgbStr(mix(base, [0, 0, 0], 0.25)); s.hx = 0; s.hy = 0; }
+  if (brush === 'spray') {
+    s.dotColors = [varyColor(base, 0.3), varyColor(base, 0.3), rgbStr(pickColor(f.pitch))];
+  }
+  return s;
 }
 
 function endStroke(s) {
   if (s && s.fade < 0) s.fade = 12; // lift the brush gradually
 }
 
-// Paint splatter, only for sharp or noisy sounds (claps, "ssss", cymbals)
-function splat(s, f) {
+// What happens the instant a sound starts
+function startMark(s, f) {
+  if (s.brush === 'watercolor') {
+    // a soft "bloom" of water and pigment
+    ctx.save();
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.fillStyle = s.color;
+    const r = (10 + f.loud * 30) * scale * brushSize;
+    for (let i = 0; i < 4; i++) {
+      ctx.globalAlpha = 0.05;
+      ctx.beginPath();
+      ctx.arc(s.x + (Math.random() - 0.5) * r * 0.5, s.y + (Math.random() - 0.5) * r * 0.5,
+              r * (0.6 + Math.random() * 0.5), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+    return;
+  }
+
+  // splatter, mostly for sharp or noisy sounds
   const drops = Math.floor(f.loud * 4 + f.roughness * 10);
   for (let i = 0; i < drops; i++) {
     const a = Math.random() * Math.PI * 2;
-    const d = Math.random() ** 2 * (15 + f.loud * 45) * scale;
-    const r = (0.6 + Math.random() * (0.8 + f.loud * 2.5)) * scale;
+    const d = Math.random() ** 2 * (15 + f.loud * 45) * scale * brushSize;
+    const r = (0.6 + Math.random() * (0.8 + f.loud * 2.5)) * scale * brushSize;
     ctx.fillStyle = varyColor(s.base, 0.3);
     ctx.beginPath();
     ctx.arc(s.x + Math.cos(a) * d, s.y + Math.sin(a) * d, r, 0, Math.PI * 2);
@@ -291,16 +387,119 @@ function splat(s, f) {
   }
 }
 
-// Move the brush one step and paint it. Returns false when the stroke is finished.
+// ---------- Brush renderers ----------
+function paintBristles(s) {
+  const nx = -Math.sin(s.angle);
+  const ny = Math.cos(s.angle);
+  const jitter = s.roughness * s.width * 0.15;
+  ctx.lineCap = 'round';
+
+  for (const b of s.bristles) {
+    const bx = s.x + nx * b.offset * s.width + (Math.random() - 0.5) * jitter;
+    const by = s.y + ny * b.offset * s.width + (Math.random() - 0.5) * jitter;
+
+    b.paint -= b.drain * (0.5 + Math.random());
+    // Dry brush: bristles low on paint start skipping, then stop completely
+    const dry = b.paint <= 0 || (b.paint < 0.25 && Math.random() > b.paint * 4);
+
+    if (!dry) {
+      ctx.strokeStyle = b.color;
+      ctx.lineWidth = Math.max(0.5, s.width * 0.09 * b.thick);
+      ctx.beginPath();
+      ctx.moveTo(b.lx, b.ly);
+      ctx.lineTo(bx, by);
+      ctx.stroke();
+    }
+    b.lx = bx;
+    b.ly = by;
+  }
+  if (s.bristles.every(b => b.paint <= 0)) endStroke(s);
+}
+
+function paintWatercolor(s) {
+  s.wet = Math.max(0.35, s.wet - 0.004); // the brush slowly runs out of water
+  ctx.save();
+  ctx.globalCompositeOperation = 'multiply'; // overlapping washes get deeper, like real paint
+  ctx.fillStyle = s.color;
+  for (let i = 0; i < 3; i++) {
+    const r = s.width * (0.45 + Math.random() * 0.5);
+    const ox = (Math.random() - 0.5) * s.width * 0.7;
+    const oy = (Math.random() - 0.5) * s.width * 0.7;
+    ctx.globalAlpha = 0.04 * s.wet;
+    ctx.beginPath();
+    ctx.arc(s.x + ox, s.y + oy, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // occasional darker edge, like pigment pooling where the water dries
+  if (Math.random() < 0.15) {
+    const start = Math.random() * Math.PI * 2;
+    ctx.globalAlpha = 0.1 * s.wet;
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.width * (0.6 + Math.random() * 0.3), start, start + Math.PI / 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function paintInk(s) {
+  // a calligraphy nib held at a fixed slant: thick or thin depending on direction
+  const nib = -Math.PI / 4;
+  const hw = s.width * 0.35;
+  const hx = Math.cos(nib) * hw;
+  const hy = Math.sin(nib) * hw;
+
+  ctx.fillStyle = s.color;
+  ctx.strokeStyle = s.color;
+  ctx.lineWidth = 0.8;
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(s.px + s.hx, s.py + s.hy);
+  ctx.lineTo(s.x + hx, s.y + hy);
+  ctx.lineTo(s.x - hx, s.y - hy);
+  ctx.lineTo(s.px - s.hx, s.py - s.hy);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  s.hx = hx;
+  s.hy = hy;
+}
+
+function paintSpray(s) {
+  const dots = Math.floor(2 + s.width * 0.2);
+  ctx.save();
+  ctx.globalAlpha = 0.85;
+  for (let i = 0; i < dots; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const d = (Math.random() + Math.random() - 1) * s.width * 0.9; // denser in the middle
+    const r = (0.7 + Math.random() * 1.8) * scale * brushSize;
+    ctx.fillStyle = s.dotColors[Math.floor(Math.random() * s.dotColors.length)];
+    ctx.beginPath();
+    ctx.arc(s.x + Math.cos(a) * d, s.y + Math.sin(a) * d, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+const RENDERERS = {
+  bristle: paintBristles,
+  watercolor: paintWatercolor,
+  ink: paintInk,
+  spray: paintSpray
+};
+
+// ---------- Moving the brush ----------
+// Returns false when the stroke is finished
 function stepStroke(s, f, isLive) {
   s.age++;
 
-  // width follows loudness while the sound lasts, then tapers off
+  // width follows loudness (and the size slider) while the sound lasts, then tapers off
   if (s.fade >= 0) {
     s.width *= 0.85;
     if (s.fade > 0) s.fade--;
   } else {
-    const target = (4 + f.loud * 30) * scale * Math.min(1, s.age / 5);
+    const target = (4 + f.loud * 30) * scale * brushSize * Math.min(1, s.age / 5);
     s.width += (target - s.width) * 0.25;
   }
 
@@ -316,39 +515,15 @@ function stepStroke(s, f, isLive) {
     s.angle += diff * 0.12;
   }
 
+  s.px = s.x;
+  s.py = s.y;
   const speed = (1.5 + (isLive ? f.loud : 0.3) * 5) * scale;
   s.x += Math.cos(s.angle) * speed;
   s.y += Math.sin(s.angle) * speed;
 
-  // paint each bristle
-  const nx = -Math.sin(s.angle);
-  const ny = Math.cos(s.angle);
-  const jitter = s.roughness * s.width * 0.15;
-  ctx.lineCap = 'round';
+  RENDERERS[s.brush](s);
 
-  for (const b of s.bristles) {
-    const bx = s.x + nx * b.offset * s.width + (Math.random() - 0.5) * jitter;
-    const by = s.y + ny * b.offset * s.width + (Math.random() - 0.5) * jitter;
-
-    b.paint -= b.drain * (0.5 + Math.random());
-
-    // Dry brush: bristles low on paint start skipping, then stop completely
-    const dry = b.paint <= 0 || (b.paint < 0.25 && Math.random() > b.paint * 4);
-
-    if (!dry) {
-      ctx.strokeStyle = b.color;
-      ctx.lineWidth = Math.max(0.5, s.width * 0.09 * b.thick);
-      ctx.beginPath();
-      ctx.moveTo(b.lx, b.ly);
-      ctx.lineTo(bx, by);
-      ctx.stroke();
-    }
-    b.lx = bx;
-    b.ly = by;
-  }
-
-  // end the stroke when it's too long or every bristle has run dry
-  if (s.age > MAX_STROKE_FRAMES || s.bristles.every(b => b.paint <= 0)) endStroke(s);
+  if (s.age > MAX_STROKE_FRAMES) endStroke(s);
   return s.fade !== 0;
 }
 
@@ -373,7 +548,7 @@ function draw() {
     endStroke(liveStroke);
     liveStroke = createStroke(f);
     strokes.push(liveStroke);
-    splat(liveStroke, f);
+    startMark(liveStroke, f);
     strokeCount++;
     updateStatus();
   } else if (liveStroke && f.rms < f.gate * 0.8) {
@@ -385,14 +560,13 @@ function draw() {
   if (liveStroke && liveStroke.fade >= 0) liveStroke = null;
 }
 
-// ---------- Buttons ----------
+// ---------- Controls ----------
 micBtn.addEventListener('click', startMic);
 fileInput.addEventListener('change', e => {
   if (e.target.files[0]) startFile(e.target.files[0]);
   e.target.value = ''; // allows re-uploading the same song
 });
 clearBtn.addEventListener('click', () => {
-  newStyle();
   clearCanvas();
   updateStatus();
 });
@@ -402,8 +576,18 @@ saveBtn.addEventListener('click', () => {
   link.href = canvas.toDataURL('image/png');
   link.click();
 });
+sizeSlider.addEventListener('input', () => {
+  brushSize = parseFloat(sizeSlider.value);
+});
 
-newStyle();
+// Keyboard shortcuts: 1–5 switch brushes, P cycles palettes
+document.addEventListener('keydown', e => {
+  const n = parseInt(e.key, 10);
+  if (n >= 1 && n <= BRUSHES.length) setBrush(BRUSHES[n - 1].id);
+  if (e.key.toLowerCase() === 'p') setPalette((paletteIndex + 1) % PALETTES.length);
+});
+
+buildPickers();
 setupCanvas();
 updateStatus();
 draw();

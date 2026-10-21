@@ -22,7 +22,23 @@
     <button id="saveBtn">💾 Save PNG</button>
   </div>
 
+  <div class="toolbar">
+    <div class="tool-group">
+      <span class="tool-label">Brush</span>
+      <div id="brushPicker" class="picker"></div>
+    </div>
+    <div class="tool-group">
+      <span class="tool-label">Palette</span>
+      <div id="palettePicker" class="picker"></div>
+    </div>
+    <div class="tool-group">
+      <span class="tool-label">Size</span>
+      <input type="range" id="sizeSlider" min="0.4" max="2" step="0.1" value="1" />
+    </div>
+  </div>
+
   <p id="status">Choose a sound source to begin.</p>
+  <p class="hint">Shortcuts: <kbd>1</kbd>–<kbd>5</kbd> brushes · <kbd>P</kbd> next palette</p>
 
   <canvas id="canvas"></canvas>
 
