@@ -2,7 +2,7 @@
 
 *A gallery of heard things.*
 
-Hueverb is an interactive exhibition where sound becomes painting. Play a song, sing, clap, or hum, and every sound leaves its own brush stroke on the canvas: pitch decides where it lands and what color it takes, loudness sets its weight, and the texture of the sound shapes the mark it makes. When the music ends, you have an original artwork to hang in your collection or download as a print-ready image.
+Hueverb is an interactive exhibition where sound becomes painting. Play a song, sing, clap, or hum, and every sound leaves its own brush stroke on the canvas: pitch decides where it lands and what color it takes, loudness sets its weight, and the texture of the sound shapes the mark it makes. When the music ends, you have an original artwork to name, hang in your collection, and download as a print.
 
 **Live site:** [xvkei.github.io/hueverb](https://xvkei.github.io/hueverb/)
 
@@ -22,9 +22,12 @@ The whole experience is designed like a museum visit. You walk in through a titl
 - **Ten brushes, including Auto.** Oil, Watercolor, Ink, Dots, Charcoal, Drip, Sketch, Knife, and Shapes, each with its own rendering technique. In Auto mode, the character of each sound chooses the brush.
 - **Twelve artist-inspired palettes,** from Kandinsky and Monet to Rothko, Hockney, and Sumi ink.
 - **Track and voice together.** Upload a track, turn on the microphone, and sing along. Both paint the same canvas at once.
+- **Adjustable sensitivity.** A Calm to Lively slider controls how easily new sounds start strokes, for noisy rooms or quiet microphones.
 - **Five canvas shapes:** Square, Portrait, Story, Landscape, and Wide, each exported at print resolution (up to 2400 px).
-- **A personal collection.** Acquired paintings are saved in the browser, with a gallery wall, a viewing screen, and PNG downloads.
-- **A live placard** that writes itself as you paint, listing the track title, the media used ("Sound, voice, oil and ink on paper"), stroke count, duration, and dimensions.
+- **A live placard** that writes itself as you paint, listing the title, the media used ("Sound, voice, oil and ink on paper"), stroke count, duration, and dimensions.
+- **Name your work.** Rename a painting in the studio or in the collection. Titles start from the track's file name and can be changed anytime.
+- **A personal collection.** Acquired paintings are saved in the browser, with a gallery wall and a viewing screen for each piece.
+- **Two kinds of downloads:** the painting on its own as a PNG, or a framed print with the frame, mat, and placard rendered into one high-resolution image.
 - **Fully responsive.** A two-column studio on desktop, and a touch toolbar, bottom sheet, and swipe gestures on phones.
 - **Performance-friendly controls.** Arrow keys for quick steps and hold-to-open radial wheels for jumping straight to any brush or palette mid-song.
 
@@ -47,7 +50,7 @@ A few details make it work with any sound in any room:
 
 - **Logarithmic bands.** Hearing works on a logarithmic scale, but an FFT spaces frequencies evenly, which gives high frequencies far more weight. Grouping the spectrum into musical bands lets low and high sounds count equally.
 - **Relative pitch.** Pitch is measured against the range of the current song or voice, so a bass-heavy track and a whistle both use the full height of the canvas.
-- **Adaptive thresholds.** The background noise floor and the peak volume are tracked continuously, so quiet rooms, loud music, and phone microphones all behave sensibly.
+- **Adaptive thresholds.** The background noise floor and the peak volume are tracked continuously, so quiet rooms, loud music, and phone microphones all behave sensibly. The sensitivity slider shifts the onset thresholds on top of that.
 
 ### Composing
 
@@ -69,6 +72,10 @@ Drawing happens in resolution-independent units, with the shorter side of the ca
 | Knife | Flat bands of color with dragged streaks that skip as the knife runs dry | Loud bass |
 | Shapes | Kandinsky-style circles, rings, triangles, and squares along a thin line | Big, sudden hits |
 
+### Framing
+
+Framed prints are composed on a separate canvas: the gallery wall, a shadowed frame, the mat, the painting at full resolution, and the placard text set in the site's own typefaces. Layout is measured in proportional units, so every canvas shape gets the same balanced framing.
+
 ---
 
 ## Controls
@@ -82,6 +89,7 @@ Drawing happens in resolution-independent units, with the shorter side of the ca
 | Jump to any brush | Hold **B**, flick the mouse toward a brush, release |
 | Jump to any palette | Hold **C**, flick the mouse toward a palette, release |
 | Swap back to the previous choice | Quick tap of **B** or **C** |
+| Rename a painting | Click its title, or **Rename** on the placard |
 | Open the visitor guide | **?** |
 | Close a wheel, dialog, or overlay | **Esc** |
 
@@ -92,8 +100,19 @@ Drawing happens in resolution-independent units, with the shorter side of the ca
 | Add, play, or pause a track | Music button in the toolbar |
 | Paint with your voice | Microphone button in the toolbar |
 | Change brushes | Tap the brush strip, or swipe the canvas left and right |
-| Palettes, canvas sizes, brush size | Swatch button in the toolbar |
+| Palettes, canvas sizes, brush size, sensitivity | Swatch button in the toolbar |
+| Rename a painting | Tap its title, or **Rename** on the placard |
 | Open the visitor guide | **?** button in the toolbar |
+
+---
+
+## Accessibility
+
+- **Keyboard support throughout.** Every control is reachable by keyboard, with visible focus styles.
+- **Focus-managed overlays.** When the guide, viewer, dialogs, or mobile sheet open, the rest of the page is made `inert`, so focus stays inside the overlay. Closing it returns focus to the control that opened it.
+- **Device-aware instructions.** The visitor guide shows keyboard shortcuts on computers and a labeled map of the touch toolbar on phones and tablets.
+- **Reduced motion.** Visitors who prefer reduced motion see a still composition on the title wall instead of the animated strokes.
+- **Comfortable touch targets.** Buttons are at least 40 to 44 px tall, and text fields are sized so mobile browsers don't zoom in on focus.
 
 ---
 
@@ -112,15 +131,15 @@ hueverb/
 │   ├── overlays.css     guide overlay, dialogs, toast, wheels
 │   └── mobile.css       mobile toolbar, sheet, breakpoints
 └── js/
-    ├── main.js          startup and the animation loop
+    ├── main.js          startup, browser check, and the animation loop
     ├── config.js        settings, canvas sizes, palettes
     ├── state.js         shared state and small selectors
     ├── utils.js         color, text, and storage helpers
     ├── audio.js         microphone, tracks, sound analysis
     ├── canvas.js        canvas setup, screen fitting, crowd map
     ├── strokes.js       stroke lifecycle and Auto mode
-    ├── ui.js            placard, status, pickers, overlays
-    ├── collection.js    IndexedDB storage, collection room, viewer
+    ├── ui.js            placard, pickers, overlays, renaming
+    ├── collection.js    IndexedDB storage, collection room, viewer, framed prints
     ├── rooms.js         entrance, routing, background animation
     ├── controls.js      buttons, keyboard, wheels, swipes
     └── brushes/
@@ -157,10 +176,11 @@ Adding a new brush means creating one file in `js/brushes/` and adding one line 
 
 - **JavaScript (ES modules):** no frameworks or dependencies
 - **Web Audio API:** `AnalyserNode`, media element and media stream sources
-- **Canvas 2D:** all brush rendering, at fixed internal resolution
+- **Canvas 2D:** all brush rendering and framed print composition
 - **IndexedDB:** storing paintings and thumbnails as blobs
-- **localStorage:** remembering preferences (canvas shape, skipped entrance)
+- **localStorage:** remembering preferences (canvas shape, sensitivity, skipped entrance)
 - **CSS:** Grid, `clamp()` for fluid sizing, `aspect-ratio`, and media queries for hover and pointer type
+- **HTML:** the `inert` attribute for overlay focus management
 - **Fonts:** Cormorant Garamond and Inter, from Google Fonts
 
 ---
@@ -195,7 +215,11 @@ Microphone access requires `localhost` or HTTPS, so it works locally and on GitH
 
 ## Browser support
 
-Hueverb works in current versions of Chrome, Edge, Firefox, and Safari, on desktop and mobile. Microphone painting needs permission from the browser, and the collection needs IndexedDB, which some strict private browsing modes disable.
+Hueverb works in current versions of Chrome, Edge, Firefox, and Safari, on desktop and mobile. When something isn't available, it explains rather than failing silently:
+
+- **No Web Audio API:** a notice suggests switching to a current browser.
+- **Microphone blocked or missing:** a message explains what happened and how to allow access.
+- **Storage blocked** (some strict private browsing modes): Acquire downloads the painting directly instead of hanging it in the collection.
 
 ---
 
