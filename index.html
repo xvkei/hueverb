@@ -9,23 +9,58 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
-<body>
-  <header class="site-header">
-    <h1 class="logo">Hueverb</h1>
-    <p class="tagline">a gallery of heard things</p>
-  </header>
+<body class="view-entrance">
 
-  <main class="gallery">
-    <section class="artwork" aria-label="Canvas">
-      <div class="frame">
-        <div class="mat">
-          <canvas id="canvas" aria-label="Painting generated from sound"></canvas>
-          <div id="hud" class="hud" aria-live="polite"></div>
-          <div id="swipeHint" class="swipe-hint">Swipe the canvas to change brushes</div>
+  <!-- ========== Entrance ========== -->
+  <section id="entrance" class="view entrance" aria-label="Entrance">
+    <canvas id="ghostCanvas" class="ghost" aria-hidden="true"></canvas>
+
+    <div id="stepTitle" class="entrance-step">
+      <p class="eyebrow">An interactive exhibition</p>
+      <h1 class="title-wall">Hueverb</h1>
+      <p class="title-tagline">a gallery of heard things</p>
+      <span class="rule" aria-hidden="true"></span>
+      <button id="enterBtn" class="link-btn accent big">Enter the exhibition →</button>
+      <p class="entrance-note">Best with sound on · works with a mic, any audio file, or both</p>
+    </div>
+
+    <div id="stepGuide" class="entrance-step">
+      <div class="guide-panel">
+        <p class="eyebrow">Visitor guide</p>
+        <h2 class="guide-title">How to visit</h2>
+        <div class="guide-labels" data-guide></div>
+        <div class="guide-foot">
+          <label class="skip"><input type="checkbox" id="skipEntrance" /> Skip the entrance next time</label>
+          <button id="beginBtn" class="link-btn accent big">Begin painting →</button>
         </div>
       </div>
-      <div id="trackProgress" class="track-progress" hidden>
-        <div id="trackFill" class="track-fill"></div>
+    </div>
+  </section>
+
+  <!-- ========== Header ========== -->
+  <header class="site-header">
+    <span class="logo">Hueverb</span>
+    <nav class="site-nav" aria-label="Rooms">
+      <button class="nav-link" data-view="studio">Studio</button>
+      <button class="nav-link" data-view="collection">Collection</button>
+      <button class="nav-link" id="guideBtn">Guide <span class="help-dot" aria-hidden="true">?</span></button>
+    </nav>
+  </header>
+
+  <!-- ========== Studio ========== -->
+  <main id="studio" class="view gallery">
+    <section id="artwork" class="artwork" aria-label="Canvas">
+      <div id="frameWrap" class="frame-wrap">
+        <div id="frame" class="frame">
+          <div id="mat" class="mat">
+            <canvas id="canvas" aria-label="Painting generated from sound"></canvas>
+            <div id="hud" class="hud" aria-live="polite"></div>
+            <div id="swipeHint" class="swipe-hint">Swipe the canvas to change brushes</div>
+          </div>
+        </div>
+        <div id="trackProgress" class="track-progress" hidden>
+          <div id="trackFill" class="track-fill"></div>
+        </div>
       </div>
       <p class="now-playing">
         <span id="statusDot" class="dot"></span>
@@ -37,7 +72,7 @@
       <div class="placard">
         <h2 id="plTitle" class="pl-title">Untitled</h2>
         <p id="plMedium" class="pl-medium">Sound on paper</p>
-        <p class="pl-meta"><span id="plStrokes">0 strokes</span> · <span id="plTime">0:00</span></p>
+        <p class="pl-meta"><span id="plStrokes">0 strokes</span> · <span id="plTime">0:00</span> · <span id="plDims">1600 × 1600 px</span></p>
         <p id="plPalette" class="pl-palette">Kandinsky palette</p>
       </div>
 
@@ -54,6 +89,10 @@
 
       <div class="tools">
         <div class="tool">
+          <span class="tool-label">Canvas size</span>
+          <div id="sizePicker" class="picker size-picker"></div>
+        </div>
+        <div class="tool">
           <span class="tool-label">Brush</span>
           <div id="brushPicker" class="picker"></div>
         </div>
@@ -67,16 +106,31 @@
         </div>
       </div>
 
-      <p class="hint">← → brushes · ↑ ↓ palettes · hold B or C for wheels</p>
+      <p class="hint">← → brushes · ↑ ↓ palettes · hold B or C for wheels · ? for the guide</p>
     </aside>
   </main>
+
+  <!-- ========== Collection ========== -->
+  <section id="collection" class="view collection" aria-label="Your collection">
+    <div class="collection-head">
+      <h2>Your collection</h2>
+      <p id="collectionCount" class="collection-count"></p>
+    </div>
+    <div id="collectionGrid" class="collection-grid"></div>
+    <div id="collectionEmpty" class="collection-empty" hidden>
+      <h3>Your walls are bare, for now</h3>
+      <p>Paint something in the studio, then press Acquire to hang it here.</p>
+      <button class="link-btn accent" data-view="studio">Go to the studio →</button>
+    </div>
+    <p class="collection-note">Works are saved in this browser on this device. Clearing your browser data removes them.</p>
+  </section>
 
   <footer class="site-footer">
     <span>Hueverb — every sound leaves a mark</span>
     <span>Made with the Web Audio API and Canvas</span>
   </footer>
 
-  <!-- Mobile toolbar -->
+  <!-- ========== Mobile toolbar ========== -->
   <div class="mobile-bar">
     <div class="mb-progress"><div id="mbFill" class="track-fill"></div></div>
     <div class="mb-row">
@@ -92,28 +146,114 @@
         <span id="mbTime" class="mb-time">0:00</span>
         <span id="mbNote" class="mb-note">Add a track or tap the mic</span>
       </div>
-      <button id="mbPalette" class="mb-icon" aria-label="Choose palette">
+      <button id="mbHelp" class="mb-icon mb-help" aria-label="Open the visitor guide">?</button>
+      <button id="mbPalette" class="mb-icon" aria-label="Palettes and canvas sizes">
         <span id="mbDots" class="mb-dots"></span>
       </button>
     </div>
     <div id="mbBrushes" class="mb-brushes"></div>
   </div>
 
-  <!-- Mobile palette sheet -->
+  <!-- ========== Mobile sheet ========== -->
   <div id="sheetBackdrop" class="sheet-backdrop" hidden></div>
   <div id="paletteSheet" class="sheet" aria-hidden="true">
     <div class="sheet-handle"></div>
-    <div class="sheet-head">
-      <span class="tool-label">Palette</span>
-      <span class="sheet-note">changes new strokes</span>
+    <div class="sheet-section">
+      <div class="sheet-head"><span class="tool-label">Palette</span><span class="sheet-note">changes new strokes</span></div>
+      <div id="sheetPalettes" class="sheet-list"></div>
     </div>
-    <div id="sheetPalettes" class="sheet-list"></div>
+    <div class="sheet-section">
+      <div class="sheet-head"><span class="tool-label">Canvas size</span><span class="sheet-note">starts a new canvas</span></div>
+      <div id="sheetSizes" class="sheet-list"></div>
+    </div>
     <div class="sheet-size">
-      <label class="tool-label" for="sizeSliderM">Size</label>
+      <label class="tool-label" for="sizeSliderM">Brush size</label>
       <input type="range" id="sizeSliderM" min="0.4" max="2" step="0.1" value="1" />
     </div>
     <button id="sheetDone" class="sheet-done">Done</button>
   </div>
+
+  <!-- ========== Guide overlay ========== -->
+  <div id="guideOverlay" class="overlay" hidden>
+    <div class="overlay-panel guide-panel" role="dialog" aria-modal="true" aria-labelledby="guideOverlayTitle">
+      <button id="guideClose" class="close-btn">Close ✕</button>
+      <p class="eyebrow">Visitor guide</p>
+      <h2 id="guideOverlayTitle" class="guide-title">How to visit</h2>
+      <div class="guide-labels" data-guide></div>
+      <p class="guide-resume">Your painting keeps going while you read.</p>
+    </div>
+  </div>
+
+  <!-- ========== Confirm dialog ========== -->
+  <div id="confirmModal" class="overlay" hidden>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <h3 id="confirmTitle">Hang this piece first?</h3>
+      <p>Starting a new canvas clears the current painting. You can hang it in your collection before it's gone.</p>
+      <div class="dialog-actions">
+        <button id="confirmHang" class="link-btn accent">Hang it, then start fresh</button>
+        <button id="confirmDiscard" class="link-btn">Start fresh without saving</button>
+        <button id="confirmCancel" class="text-btn">Keep painting</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== Viewing screen ========== -->
+  <div id="viewer" class="overlay" hidden>
+    <div class="overlay-panel" role="dialog" aria-modal="true" aria-labelledby="vTitle">
+      <button id="viewerClose" class="close-btn">Close ✕</button>
+      <div class="viewer-panel">
+        <div class="viewer-art">
+          <div class="viewer-frame"><div class="viewer-mat"><img id="viewerImg" alt="" /></div></div>
+        </div>
+        <div>
+          <div class="placard">
+            <h2 id="vTitle" class="pl-title"></h2>
+            <p id="vMedium" class="pl-medium"></p>
+            <p id="vMeta" class="pl-meta"></p>
+            <p id="vDims" class="pl-meta"></p>
+            <p id="vDate" class="pl-palette"></p>
+          </div>
+          <div class="viewer-actions">
+            <button id="viewerDownload" class="link-btn accent">Download print (PNG) →</button>
+            <button id="viewerRemove" class="text-btn">Remove from collection</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== Toast ========== -->
+  <div id="toast" class="toast" role="status">
+    <span id="toastText"></span>
+    <button id="toastAction" hidden></button>
+  </div>
+
+  <!-- ========== Guide labels (shared by the entrance and the overlay) ========== -->
+  <template id="guideTemplate">
+    <article class="guide-label">
+      <p class="numeral">I</p>
+      <h3>Choose a sound</h3>
+      <p>Listen with your mic, upload a track, or use both at once to sing along. Headphones help when you do both.</p>
+    </article>
+    <article class="guide-label">
+      <p class="numeral">II</p>
+      <h3>Every sound leaves a mark</h3>
+      <p>Pitch sets height and color. Loudness sets thickness. Long sounds paint long strokes, and sharp sounds splatter.</p>
+    </article>
+    <article class="guide-label">
+      <p class="numeral">III</p>
+      <h3>Change the brush mid-song</h3>
+      <p>
+        <span class="desk-text"><kbd>←</kbd> <kbd>→</kbd> brushes · <kbd>↑</kbd> <kbd>↓</kbd> palettes. Hold <kbd>B</kbd> or <kbd>C</kbd> for the wheels, tap to swap back. Press <kbd>?</kbd> for this guide.</span>
+        <span class="touch-text">Tap a brush in the toolbar, or swipe the canvas left and right. The swatch button opens palettes and canvas sizes.</span>
+      </p>
+    </article>
+    <article class="guide-label">
+      <p class="numeral">IV</p>
+      <h3>Acquire your piece</h3>
+      <p>Pick a canvas size before you start. When you're done, hang it in your collection and download it as a print-ready image.</p>
+    </article>
+  </template>
 
   <script src="script.js"></script>
 </body>

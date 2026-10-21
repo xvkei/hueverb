@@ -1,7 +1,27 @@
+// =====================================================================
+// Hueverb — a gallery of heard things
+// =====================================================================
+
 // ---------- Elements ----------
 const $ = id => document.getElementById(id);
+
 const canvas = $('canvas');
 const ctx = canvas.getContext('2d');
+const ghostCanvas = $('ghostCanvas');
+const gctx = ghostCanvas.getContext('2d');
+
+const views = { entrance: $('entrance'), studio: $('studio'), collection: $('collection') };
+const stepTitle = $('stepTitle');
+const stepGuide = $('stepGuide');
+const enterBtn = $('enterBtn');
+const beginBtn = $('beginBtn');
+const skipEntrance = $('skipEntrance');
+const guideBtn = $('guideBtn');
+
+const artworkEl = $('artwork');
+const frameWrap = $('frameWrap');
+const frameEl = $('frame');
+const matEl = $('mat');
 
 const micBtn = $('micBtn');
 const uploadBtn = $('uploadBtn');
@@ -12,6 +32,7 @@ const clearBtn = $('clearBtn');
 const saveBtn = $('saveBtn');
 const statusText = $('statusText');
 const statusDot = $('statusDot');
+const sizePicker = $('sizePicker');
 const brushPicker = $('brushPicker');
 const palettePicker = $('palettePicker');
 const sizeSlider = $('sizeSlider');
@@ -24,12 +45,18 @@ const plTitle = $('plTitle');
 const plMedium = $('plMedium');
 const plStrokes = $('plStrokes');
 const plTime = $('plTime');
+const plDims = $('plDims');
 const plPalette = $('plPalette');
+
+const collectionGrid = $('collectionGrid');
+const collectionEmpty = $('collectionEmpty');
+const collectionCount = $('collectionCount');
 
 const mbTrack = $('mbTrack');
 const mbMic = $('mbMic');
 const mbTime = $('mbTime');
 const mbNote = $('mbNote');
+const mbHelp = $('mbHelp');
 const mbPalette = $('mbPalette');
 const mbDots = $('mbDots');
 const mbBrushes = $('mbBrushes');
@@ -37,8 +64,29 @@ const mbFill = $('mbFill');
 const sheet = $('paletteSheet');
 const sheetBackdrop = $('sheetBackdrop');
 const sheetPalettes = $('sheetPalettes');
+const sheetSizes = $('sheetSizes');
 const sizeSliderM = $('sizeSliderM');
 const sheetDone = $('sheetDone');
+
+const guideOverlay = $('guideOverlay');
+const guideClose = $('guideClose');
+const confirmModal = $('confirmModal');
+const confirmHang = $('confirmHang');
+const confirmDiscard = $('confirmDiscard');
+const confirmCancel = $('confirmCancel');
+const viewer = $('viewer');
+const viewerClose = $('viewerClose');
+const viewerImg = $('viewerImg');
+const viewerDownload = $('viewerDownload');
+const viewerRemove = $('viewerRemove');
+const vTitle = $('vTitle');
+const vMedium = $('vMedium');
+const vMeta = $('vMeta');
+const vDims = $('vDims');
+const vDate = $('vDate');
+const toast = $('toast');
+const toastText = $('toastText');
+const toastAction = $('toastAction');
 
 // ---------- Settings you can tweak ----------
 const PAPER = '#f3eee4';        // canvas background color
@@ -46,10 +94,18 @@ const SENSITIVITY = 1.6;        // lower = more strokes, higher = fewer (try 1.3
 const MIN_GAP_MS = 120;         // minimum time between new strokes
 const MAX_STROKE_FRAMES = 240;  // longest a single stroke can flow (~4 seconds)
 const BRISTLES = 26;            // number of "hairs" in the oil brush
-const LOGICAL = 1000;           // drawing coordinates (0–1000), independent of screen size
-const RESOLUTION = 1600;        // actual pixels; CSS scales the canvas to fit any screen
 const PITCH_BANDS = 24;         // musical (log-spaced) bands used to measure pitch
 const GRID = 12;                // crowd map used to spread strokes across the canvas
+const MAX_WORKS = 40;           // collection limit, so the browser never runs out of space
+
+// Canvas shapes. Drawing uses the shorter side = 1000 units, so brushes feel the same at every size.
+const SIZES = [
+  { id: 'square',    name: 'Square',    ratio: '1:1',  w: 1600, h: 1600 },
+  { id: 'portrait',  name: 'Portrait',  ratio: '4:5',  w: 1600, h: 2000 },
+  { id: 'story',     name: 'Story',     ratio: '9:16', w: 1350, h: 2400 },
+  { id: 'landscape', name: 'Landscape', ratio: '3:2',  w: 2400, h: 1600 },
+  { id: 'wide',      name: 'Wide',      ratio: '16:9', w: 2400, h: 1350 }
+];
 
 const BRUSHES = [
   { id: 'auto',       label: 'Auto',       short: 'Auto',     hint: 'Let the sound choose the brush' },
@@ -87,6 +143,42 @@ const PALETTES = [
   { name: 'Sumi',      colors: ['#111111', '#3a3a3a', '#6b6b6b', '#9a9a9a', '#b3261e'] }
 ];
 
+// ---------- Small helpers ----------
+const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+
+function store(key, value) {
+  try { localStorage.setItem(key, value); } catch (e) {}
+}
+
+function load(key) {
+  try { return localStorage.getItem(key); } catch (e) { return null; }
+}
+
+function formatTime(sec) {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function formatDate(ts) {
+  return new Date(ts).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function slugify(text) {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'untitled';
+}
+
+// ['Sound', 'oil', 'ink'] -> "Sound, oil and ink"
+function joinList(items) {
+  if (items.length <= 1) return items.join('');
+  return items.slice(0, -1).join(', ') + ' and ' + items[items.length - 1];
+}
+
+// "my_song-final.mp3" -> "my song final"
+function titleFromFile(name) {
+  return name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ').trim() || 'Untitled';
+}
+
 // ---------- State ----------
 let audioCtx, analyser, freqData, prevFreq, timeData, bandEdges, maxBin;
 
@@ -98,14 +190,18 @@ let micStream = null;
 let micSource = null;
 let voiceUsed = false;
 
-const size = LOGICAL;
-const scale = LOGICAL / 600;
+let currentSizeId = SIZES.some(s => s.id === load('hueverb-size')) ? load('hueverb-size') : 'square';
+let W = 1000;            // logical canvas width
+let H = 1000;            // logical canvas height
+const scale = 1000 / 600;
+
 let strokes = [];
 let liveStroke = null;
 let strokeCount = 0;
 let drips = [];
 let sketchPoints = [];
 const density = new Float32Array(GRID * GRID);
+let dirty = false;       // true when the painting has unsaved strokes
 
 let currentBrush = 'auto';
 let prevBrush = 'auto';
@@ -119,6 +215,7 @@ let lastTick = null;
 let shownSecond = -1;
 let lastMbTime = '';
 let hudTimer = null;
+let toastTimer = null;
 
 // sound tracking
 let fluxAvg = 0;
@@ -129,7 +226,6 @@ let pitchHi = 0.6;
 let lastOnset = 0;
 
 const SILENCE = { rms: 0, gate: 1, flux: 0, pitch: 0.5, loud: 0, roughness: 0 };
-const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 
 // ---------- Color helpers ----------
 function hexToRgb(hex) {
@@ -164,22 +260,133 @@ function varyColor(rgb, amount) {
   return rgbStr(v > 0 ? mix(rgb, [255, 255, 255], v) : mix(rgb, [0, 0, 0], -v));
 }
 
-// ---------- Placard, status & transport UI ----------
-function formatTime(sec) {
-  const m = Math.floor(sec / 60);
-  const s = Math.floor(sec % 60);
-  return `${m}:${String(s).padStart(2, '0')}`;
+// =====================================================================
+// Rooms (entrance, studio, collection)
+// =====================================================================
+function showView(name) {
+  Object.entries(views).forEach(([key, el]) => el.classList.toggle('active', key === name));
+  document.body.className = `view-${name}`;
+  document.querySelectorAll('.nav-link[data-view]').forEach(b =>
+    b.classList.toggle('current', b.dataset.view === name)
+  );
+  closeSheet();
+
+  if (name === 'entrance') startGhost();
+  else stopGhost();
+  if (name === 'studio') requestAnimationFrame(fitFrame);
+  if (name === 'collection') renderCollection();
+  window.scrollTo(0, 0);
 }
 
-// ['Sound', 'oil', 'ink'] -> "Sound, oil and ink"
-function joinList(items) {
-  if (items.length <= 1) return items.join('');
-  return items.slice(0, -1).join(', ') + ' and ' + items[items.length - 1];
+function showEntranceStep(step) {
+  stepTitle.classList.toggle('active', step === 'title');
+  stepGuide.classList.toggle('active', step === 'guide');
 }
 
-// "my_song-final.mp3" -> "my song final"
-function titleFromFile(name) {
-  return name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ').trim() || 'Untitled';
+function route() {
+  const hash = location.hash.replace('#', '');
+  if (hash === 'studio' || hash === 'collection') {
+    showView(hash);
+  } else if (load('hueverb-skip-entrance') === '1') {
+    history.replaceState(null, '', '#studio');
+    showView('studio');
+  } else {
+    showView('entrance');
+    showEntranceStep('title');
+  }
+}
+
+function go(name) {
+  if (location.hash === '#' + name) route();
+  else location.hash = name;
+}
+
+window.addEventListener('hashchange', route);
+
+// ---------- Faint self-painting strokes behind the title ----------
+const ghost = { running: false, walkers: [], last: 0 };
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function resizeGhost() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  ghostCanvas.width = window.innerWidth * dpr;
+  ghostCanvas.height = window.innerHeight * dpr;
+  gctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function spawnWalker() {
+  const p = PALETTES[Math.floor(Math.random() * PALETTES.length)];
+  ghost.walkers.push({
+    x: Math.random() * window.innerWidth,
+    y: Math.random() * window.innerHeight,
+    angle: Math.random() * Math.PI * 2,
+    turn: (Math.random() - 0.5) * 0.03,
+    speed: 1 + Math.random() * 1.5,
+    width: 6 + Math.random() * 18,
+    color: p.colors[1 + Math.floor(Math.random() * 4)],
+    life: 160 + Math.random() * 200,
+    age: 0
+  });
+}
+
+function stepGhost(fade) {
+  if (fade) {
+    gctx.fillStyle = 'rgba(246, 244, 239, 0.012)'; // older strokes slowly fade away
+    gctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+  }
+  gctx.lineCap = 'round';
+  for (const w of ghost.walkers) {
+    w.turn = clamp(w.turn + (Math.random() - 0.5) * 0.008, -0.04, 0.04);
+    w.angle += w.turn;
+    const nx = w.x + Math.cos(w.angle) * w.speed;
+    const ny = w.y + Math.sin(w.angle) * w.speed;
+    const taper = Math.min(1, w.age / 20, (w.life - w.age) / 30);
+    gctx.strokeStyle = w.color;
+    gctx.lineWidth = Math.max(0.5, w.width * taper);
+    gctx.beginPath();
+    gctx.moveTo(w.x, w.y);
+    gctx.lineTo(nx, ny);
+    gctx.stroke();
+    w.x = nx;
+    w.y = ny;
+    w.age++;
+  }
+  ghost.walkers = ghost.walkers.filter(w => w.age < w.life);
+}
+
+function ghostLoop(t) {
+  if (!ghost.running) return;
+  requestAnimationFrame(ghostLoop);
+  if (t - ghost.last > 1400 && ghost.walkers.length < 4) {
+    spawnWalker();
+    ghost.last = t;
+  }
+  stepGhost(true);
+}
+
+function startGhost() {
+  if (ghost.running) return;
+  resizeGhost();
+  if (reducedMotion) {
+    // a still composition instead of animation
+    for (let i = 0; i < 5; i++) spawnWalker();
+    for (let i = 0; i < 400; i++) stepGhost(false);
+    return;
+  }
+  ghost.running = true;
+  requestAnimationFrame(ghostLoop);
+}
+
+function stopGhost() {
+  ghost.running = false;
+  ghost.walkers = [];
+}
+
+// =====================================================================
+// Placard, status & transport UI
+// =====================================================================
+function currentSize() {
+  return SIZES.find(s => s.id === currentSizeId);
 }
 
 function pieceTitle() {
@@ -193,6 +400,8 @@ function updatePlacard() {
   const parts = ['Sound', ...(voiceUsed ? ['voice'] : []), ...media];
   plMedium.textContent = `${joinList(parts)} on paper, ${new Date().getFullYear()}`;
   plStrokes.textContent = `${strokeCount} ${strokeCount === 1 ? 'stroke' : 'strokes'}`;
+  const s = currentSize();
+  plDims.textContent = `${s.w} × ${s.h} px`;
   plPalette.textContent = `${PALETTES[paletteIndex].name} palette`;
 }
 
@@ -208,7 +417,6 @@ function refreshAll() {
   const playing = isTrackPlaying();
   const listening = !!micStream;
 
-  // desktop buttons
   micBtn.textContent = listening ? 'Stop listening' : 'Listen';
   micBtn.classList.toggle('active', listening);
   trackBtn.hidden = !trackEl;
@@ -216,13 +424,11 @@ function refreshAll() {
   uploadLabel.textContent = trackEl ? 'Change track' : 'Upload a track';
   trackProgress.hidden = !trackEl;
 
-  // mobile buttons
   mbTrack.dataset.state = !trackEl ? 'none' : playing ? 'playing' : 'paused';
   mbTrack.setAttribute('aria-label', !trackEl ? 'Add a track' : playing ? 'Pause track' : 'Play track');
   mbMic.classList.toggle('active', listening);
   mbMic.setAttribute('aria-label', listening ? 'Stop listening' : 'Listen');
 
-  // status line
   let text;
   if (playing && listening) text = 'Painting track and voice. Headphones help';
   else if (listening) text = 'Listening. Clap, hum, whistle, or sing';
@@ -273,7 +479,31 @@ function showHud(text) {
   hudTimer = setTimeout(() => hud.classList.remove('show'), 1200);
 }
 
-// ---------- Brush & palette pickers ----------
+function showToast(text, actionLabel, action) {
+  toastText.textContent = text;
+  toastAction.hidden = !actionLabel;
+  toastAction.textContent = actionLabel || '';
+  toastAction.onclick = action
+    ? () => { toast.classList.remove('show'); action(); }
+    : null;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 4000);
+}
+
+// =====================================================================
+// Pickers: canvas size, brush, palette
+// =====================================================================
+function makeBrushButton(b, label) {
+  const btn = document.createElement('button');
+  btn.className = 'pick';
+  btn.textContent = label;
+  btn.title = b.hint;
+  btn.dataset.brush = b.id;
+  btn.addEventListener('click', () => setBrush(b.id));
+  return btn;
+}
+
 function makePaletteButton(p, i) {
   const btn = document.createElement('button');
   btn.className = 'pick';
@@ -286,17 +516,28 @@ function makePaletteButton(p, i) {
   return btn;
 }
 
-function makeBrushButton(b, label) {
+function makeSizeButton(s) {
   const btn = document.createElement('button');
   btn.className = 'pick';
-  btn.textContent = label;
-  btn.title = b.hint;
-  btn.dataset.brush = b.id;
-  btn.addEventListener('click', () => setBrush(b.id));
+  btn.dataset.size = s.id;
+  btn.title = `${s.name} (${s.ratio}), saves at ${s.w} × ${s.h} px`;
+  const r = s.w / s.h;
+  const iw = r >= 1 ? 18 : Math.round(18 * r);
+  const ih = r >= 1 ? Math.round(18 / r) : 18;
+  btn.innerHTML =
+    `<span class="size-icon-box"><span class="size-icon" style="width:${iw}px;height:${ih}px"></span></span>` +
+    `<span class="pick-name">${s.name}</span><span class="size-ratio">${s.ratio}</span>`;
+  btn.addEventListener('click', () => {
+    if (s.id !== currentSizeId) startNewCanvas(s.id);
+  });
   return btn;
 }
 
 function buildPickers() {
+  SIZES.forEach(s => {
+    sizePicker.appendChild(makeSizeButton(s));
+    sheetSizes.appendChild(makeSizeButton(s));
+  });
   BRUSHES.forEach(b => {
     brushPicker.appendChild(makeBrushButton(b, b.label));
     mbBrushes.appendChild(makeBrushButton(b, b.short));
@@ -315,13 +556,14 @@ function refreshPickers() {
   document.querySelectorAll('[data-palette]').forEach(b =>
     b.classList.toggle('active', Number(b.dataset.palette) === paletteIndex)
   );
+  document.querySelectorAll('[data-size]').forEach(b =>
+    b.classList.toggle('active', b.dataset.size === currentSizeId)
+  );
 
-  // mobile palette button shows 3 dots of the current palette
   const c = PALETTES[paletteIndex].colors;
   mbDots.innerHTML = [c[0], c[2], c[4]].map(col => `<span style="background:${col}"></span>`).join('');
 
-  // keep the active brush visible in the mobile strip
-  if (window.matchMedia('(max-width: 899px)').matches) {
+  if (window.matchMedia('(max-width: 899px)').matches && views.studio.classList.contains('active')) {
     const active = mbBrushes.querySelector('.pick.active');
     if (active) active.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
   }
@@ -358,19 +600,51 @@ function stepPalette(dir) {
   setPalette((paletteIndex + dir + PALETTES.length) % PALETTES.length, true);
 }
 
-// ---------- Canvas setup ----------
-// The canvas always paints at the same resolution; CSS scales it to fit the screen,
-// so resizing or rotating the device never clears or distorts the painting.
+// =====================================================================
+// Canvas setup & fitting
+// =====================================================================
 function setupCanvas() {
-  canvas.width = RESOLUTION;
-  canvas.height = RESOLUTION;
-  ctx.setTransform(RESOLUTION / LOGICAL, 0, 0, RESOLUTION / LOGICAL, 0, 0);
+  const s = currentSize();
+  const short = Math.min(s.w, s.h);
+  W = (1000 * s.w) / short;
+  H = (1000 * s.h) / short;
+  canvas.width = s.w;
+  canvas.height = s.h;
+  canvas.style.aspectRatio = `${s.w} / ${s.h}`;
+  ctx.setTransform(short / 1000, 0, 0, short / 1000, 0, 0);
   clearCanvas();
+  fitFrame();
 }
+
+// Make the frame as large as possible without overflowing the column or the screen height
+function fitFrame() {
+  if (!views.studio.classList.contains('active')) return;
+  const s = currentSize();
+  const ratio = s.w / s.h;
+  const extra =
+    2 * (parseFloat(getComputedStyle(frameEl).paddingLeft) + parseFloat(getComputedStyle(matEl).paddingLeft));
+  const mobile = window.matchMedia('(max-width: 899px)').matches;
+  const availW = artworkEl.clientWidth;
+  const availH = Math.max(260, window.innerHeight - (mobile ? 250 : 170));
+
+  let cw = availW - extra;
+  let ch = cw / ratio;
+  if (ch > availH - extra) {
+    ch = availH - extra;
+    cw = ch * ratio;
+  }
+  frameWrap.style.width = Math.max(120, Math.round(cw + extra)) + 'px';
+}
+
+window.addEventListener('resize', () => {
+  fitFrame();
+  if (ghost.running) resizeGhost();
+});
+if ('ResizeObserver' in window) new ResizeObserver(() => fitFrame()).observe(artworkEl);
 
 function clearCanvas() {
   ctx.fillStyle = PAPER;
-  ctx.fillRect(0, 0, size, size);
+  ctx.fillRect(0, 0, W, H);
   addPaperGrain();
   strokes = [];
   liveStroke = null;
@@ -378,6 +652,7 @@ function clearCanvas() {
   sketchPoints = [];
   density.fill(0);
   strokeCount = 0;
+  dirty = false;
   brushesUsed.clear();
   voiceUsed = !!micStream;
   paintSeconds = 0;
@@ -387,17 +662,17 @@ function clearCanvas() {
 
 // Tiny light and dark specks so the canvas feels like real paper
 function addPaperGrain() {
-  const specks = Math.floor((size * size) / 40);
+  const specks = Math.floor((W * H) / 40);
   for (let i = 0; i < specks; i++) {
     ctx.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,0.035)' : 'rgba(255,255,255,0.08)';
-    ctx.fillRect(Math.random() * size, Math.random() * size, 1, 1);
+    ctx.fillRect(Math.random() * W, Math.random() * H, 1, 1);
   }
 }
 
 // ---------- Crowd map: helps strokes spread across the whole canvas ----------
 function cellIndex(x, y) {
-  const cx = clamp(Math.floor((x / size) * GRID), 0, GRID - 1);
-  const cy = clamp(Math.floor((y / size) * GRID), 0, GRID - 1);
+  const cx = clamp(Math.floor((x / W) * GRID), 0, GRID - 1);
+  const cy = clamp(Math.floor((y / H) * GRID), 0, GRID - 1);
   return cy * GRID + cx;
 }
 
@@ -407,14 +682,14 @@ function addDensity(x, y, amount) {
 
 // Try a few spots near the pitch's height and pick the least crowded one
 function pickSpot(pitch) {
-  const margin = size * 0.1;
-  const targetY = size * (0.88 - pitch * 0.76); // high sounds near the top, low near the bottom
+  const margin = Math.min(W, H) * 0.1;
+  const targetY = H * (0.88 - pitch * 0.76); // high sounds near the top, low near the bottom
   let best = null;
   let bestScore = Infinity;
   for (let i = 0; i < 8; i++) {
-    const x = margin + Math.random() * (size - margin * 2);
-    const y = clamp(targetY + (Math.random() - 0.5) * size * 0.35, margin, size - margin);
-    const score = density[cellIndex(x, y)] + (Math.abs(y - targetY) / size) * 2 + Math.random() * 0.5;
+    const x = margin + Math.random() * (W - margin * 2);
+    const y = clamp(targetY + (Math.random() - 0.5) * H * 0.35, margin, H - margin);
+    const score = density[cellIndex(x, y)] + (Math.abs(y - targetY) / H) * 2 + Math.random() * 0.5;
     if (score < bestScore) {
       bestScore = score;
       best = { x, y };
@@ -423,7 +698,232 @@ function pickSpot(pitch) {
   return best;
 }
 
-// ---------- Audio setup ----------
+// =====================================================================
+// New canvas, acquiring & the collection (IndexedDB)
+// =====================================================================
+const DB_NAME = 'hueverb';
+const STORE_NAME = 'works';
+let dbPromise = null;
+
+function openDB() {
+  if (!dbPromise) {
+    dbPromise = new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => req.result.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  return dbPromise;
+}
+
+async function dbRequest(mode, fn) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, mode);
+    const req = fn(tx.objectStore(STORE_NAME));
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+const dbAll = () => dbRequest('readonly', s => s.getAll());
+const dbCount = () => dbRequest('readonly', s => s.count());
+const dbAdd = work => dbRequest('readwrite', s => s.add(work));
+const dbDelete = id => dbRequest('readwrite', s => s.delete(id));
+
+function canvasToBlob(c, type, quality) {
+  return new Promise((resolve, reject) => {
+    c.toBlob(b => (b ? resolve(b) : reject(new Error('Could not create image'))), type, quality);
+  });
+}
+
+function makeThumb() {
+  const s = currentSize();
+  const k = 480 / Math.max(s.w, s.h);
+  const off = document.createElement('canvas');
+  off.width = Math.round(s.w * k);
+  off.height = Math.round(s.h * k);
+  off.getContext('2d').drawImage(canvas, 0, 0, off.width, off.height);
+  return canvasToBlob(off, 'image/jpeg', 0.85);
+}
+
+async function acquire() {
+  if (strokeCount === 0) {
+    showToast('Paint something first, then acquire it');
+    return false;
+  }
+  try {
+    if ((await dbCount()) >= MAX_WORKS) {
+      showToast('Your collection is full. Remove a work to make room', 'Open', () => go('collection'));
+      return false;
+    }
+    const s = currentSize();
+    const [blob, thumb] = await Promise.all([canvasToBlob(canvas, 'image/png'), makeThumb()]);
+    await dbAdd({
+      title: pieceTitle(),
+      medium: plMedium.textContent,
+      strokes: strokeCount,
+      seconds: Math.round(paintSeconds),
+      palette: PALETTES[paletteIndex].name,
+      w: s.w,
+      h: s.h,
+      date: Date.now(),
+      blob,
+      thumb
+    });
+    dirty = false;
+    showToast('Hung in your collection', 'View', () => go('collection'));
+    return true;
+  } catch (err) {
+    console.error(err);
+    showToast("Couldn't save to your collection");
+    return false;
+  }
+}
+
+// "Hang this piece first?" — resolves to 'hang', 'discard', or 'cancel'
+let dialogResolve = null;
+
+function askToHang() {
+  return new Promise(resolve => {
+    dialogResolve = choice => {
+      confirmModal.hidden = true;
+      dialogResolve = null;
+      resolve(choice);
+    };
+    confirmModal.hidden = false;
+    confirmHang.focus();
+  });
+}
+
+confirmHang.addEventListener('click', () => dialogResolve && dialogResolve('hang'));
+confirmDiscard.addEventListener('click', () => dialogResolve && dialogResolve('discard'));
+confirmCancel.addEventListener('click', () => dialogResolve && dialogResolve('cancel'));
+
+async function startNewCanvas(sizeId) {
+  if (dirty) {
+    const choice = await askToHang();
+    if (choice === 'cancel') return;
+    if (choice === 'hang' && !(await acquire())) return;
+  }
+  if (sizeId) {
+    currentSizeId = sizeId;
+    store('hueverb-size', sizeId);
+    setupCanvas();
+  } else {
+    clearCanvas();
+  }
+  refreshPickers();
+}
+
+// ---------- Collection room ----------
+let collectionUrls = [];
+
+async function renderCollection() {
+  collectionUrls.forEach(u => URL.revokeObjectURL(u));
+  collectionUrls = [];
+
+  let works = [];
+  try {
+    works = await dbAll();
+  } catch (err) {
+    console.error(err);
+  }
+  works.sort((a, b) => b.date - a.date);
+
+  collectionGrid.innerHTML = '';
+  collectionEmpty.hidden = works.length > 0;
+  collectionCount.textContent = `${works.length} ${works.length === 1 ? 'work' : 'works'} · saved on this device only`;
+
+  works.forEach(work => {
+    const url = URL.createObjectURL(work.thumb);
+    collectionUrls.push(url);
+    const r = work.w / work.h;
+
+    const btn = document.createElement('button');
+    btn.className = 'work';
+    btn.innerHTML =
+      `<div class="work-slot"><div class="work-frame" style="width:${r >= 1 ? 88 : 88 * r}%">` +
+      `<div class="work-mat"><img src="${url}" alt="" /></div></div></div>` +
+      `<p class="work-title"></p><p class="work-meta"></p>`;
+    // titles come from file names, so they're set as text (never as HTML)
+    btn.querySelector('img').alt = work.title;
+    btn.querySelector('.work-title').textContent = work.title;
+    btn.querySelector('.work-meta').textContent = `${work.palette} palette · ${formatDate(work.date)}`;
+    btn.addEventListener('click', () => openViewer(work));
+    collectionGrid.appendChild(btn);
+  });
+}
+
+// ---------- Viewing screen ----------
+let viewerWork = null;
+let viewerUrl = null;
+let removeTimer = null;
+
+function openViewer(work) {
+  viewerWork = work;
+  if (viewerUrl) URL.revokeObjectURL(viewerUrl);
+  viewerUrl = URL.createObjectURL(work.blob);
+  viewerImg.src = viewerUrl;
+  viewerImg.alt = work.title;
+  vTitle.textContent = work.title;
+  vMedium.textContent = work.medium;
+  vMeta.textContent = `${work.strokes} strokes · ${formatTime(work.seconds)} · ${work.palette} palette`;
+  vDims.textContent = `${work.w} × ${work.h} px`;
+  vDate.textContent = `Acquired ${formatDate(work.date)}`;
+  resetRemoveButton();
+  viewer.hidden = false;
+  viewerClose.focus();
+}
+
+function closeViewer() {
+  viewer.hidden = true;
+  viewerWork = null;
+  resetRemoveButton();
+}
+
+function resetRemoveButton() {
+  clearTimeout(removeTimer);
+  viewerRemove.textContent = 'Remove from collection';
+  viewerRemove.classList.remove('armed');
+  viewerRemove.dataset.armed = '';
+}
+
+viewerClose.addEventListener('click', closeViewer);
+
+viewerDownload.addEventListener('click', () => {
+  if (!viewerWork) return;
+  const link = document.createElement('a');
+  link.download = `hueverb-${slugify(viewerWork.title)}.png`;
+  link.href = viewerUrl;
+  link.click();
+});
+
+// Removing needs a second tap, so nothing is deleted by accident
+viewerRemove.addEventListener('click', async () => {
+  if (!viewerWork) return;
+  if (viewerRemove.dataset.armed !== '1') {
+    viewerRemove.dataset.armed = '1';
+    viewerRemove.classList.add('armed');
+    viewerRemove.textContent = 'Tap again to remove';
+    removeTimer = setTimeout(resetRemoveButton, 3000);
+    return;
+  }
+  try {
+    await dbDelete(viewerWork.id);
+    closeViewer();
+    renderCollection();
+    showToast('Removed from your collection');
+  } catch (err) {
+    console.error(err);
+    showToast("Couldn't remove that work");
+  }
+});
+
+// =====================================================================
+// Audio
+// =====================================================================
 function ensureAudio() {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -457,7 +957,6 @@ function resetTracking() {
   liveStroke = null;
 }
 
-// Microphone: can run alone or together with a track
 async function toggleMic() {
   if (micStream) stopMic();
   else await startMic();
@@ -491,7 +990,6 @@ function stopMic() {
   refreshAll();
 }
 
-// Track: can run alone or together with the mic
 function loadTrack(file) {
   ensureAudio();
   if (trackEl) {
@@ -601,7 +1099,9 @@ function analyze() {
   };
 }
 
-// ---------- Creating strokes ----------
+// =====================================================================
+// Strokes
+// =====================================================================
 // In Auto mode, the character of the sound picks the brush
 function chooseBrush(f, punch) {
   if (currentBrush !== 'auto') return currentBrush;
@@ -907,7 +1407,7 @@ function updateDrips() {
       ctx.fill();
     }
   }
-  drips = drips.filter(d => d.left > 0 && d.y < size);
+  drips = drips.filter(d => d.left > 0 && d.y < H);
 }
 
 function paintSketch(s) {
@@ -1003,12 +1503,10 @@ function paintShapes(s) {
   ctx.lineWidth = Math.max(1, r * 0.08);
 
   if (type === 0) {
-    // solid circle
     ctx.beginPath();
     ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.fill();
   } else if (type === 1) {
-    // concentric circles
     for (let k = 3; k >= 1; k--) {
       ctx.fillStyle = rgbStr(pickColor(Math.random()));
       ctx.beginPath();
@@ -1016,7 +1514,6 @@ function paintShapes(s) {
       ctx.fill();
     }
   } else if (type === 2) {
-    // triangle
     ctx.beginPath();
     ctx.moveTo(0, -r);
     ctx.lineTo(r * 0.87, r * 0.5);
@@ -1024,14 +1521,12 @@ function paintShapes(s) {
     ctx.closePath();
     ctx.fill();
   } else if (type === 3) {
-    // ring
     ctx.strokeStyle = ctx.fillStyle;
     ctx.lineWidth = r * 0.18;
     ctx.beginPath();
     ctx.arc(0, 0, r * 0.8, 0, Math.PI * 2);
     ctx.stroke();
   } else {
-    // square with an outline
     ctx.fillRect(-r * 0.7, -r * 0.7, r * 1.4, r * 1.4);
     ctx.strokeRect(-r * 0.7, -r * 0.7, r * 1.4, r * 1.4);
   }
@@ -1074,9 +1569,9 @@ function stepStroke(s, f, isLive) {
   }
 
   // steer back toward the middle near the edges
-  const margin = size * 0.08;
-  if (s.x < margin || s.x > size - margin || s.y < margin || s.y > size - margin) {
-    const toCenter = Math.atan2(size / 2 - s.y, size / 2 - s.x);
+  const margin = Math.min(W, H) * 0.08;
+  if (s.x < margin || s.x > W - margin || s.y < margin || s.y > H - margin) {
+    const toCenter = Math.atan2(H / 2 - s.y, W / 2 - s.x);
     const diff = Math.atan2(Math.sin(toCenter - s.angle), Math.cos(toCenter - s.angle));
     s.angle += diff * 0.12;
   }
@@ -1125,6 +1620,7 @@ function draw() {
     strokes.push(liveStroke);
     startMark(liveStroke, f);
     strokeCount++;
+    dirty = true;
     brushesUsed.add(liveStroke.brush);
     updatePlacard();
   } else if (liveStroke && f.rms < f.gate * 0.8) {
@@ -1136,7 +1632,9 @@ function draw() {
   if (liveStroke && liveStroke.fade >= 0) liveStroke = null;
 }
 
-// ---------- Desktop wheels (hold B or C) ----------
+// =====================================================================
+// Desktop wheels (hold B or C)
+// =====================================================================
 const NS = 'http://www.w3.org/2000/svg';
 const wheels = {};
 let wheelState = null;
@@ -1194,7 +1692,6 @@ function buildWheel(type) {
       t.textContent = item.label;
       texts.push(t);
     } else {
-      // three dots from the palette, laid along the ring
       const tx = -Math.sin(mid);
       const ty = Math.cos(mid);
       [0, 2, 4].forEach((c, k) => {
@@ -1233,7 +1730,6 @@ function highlightWheel(w, i) {
     s.texts.forEach(t => t.setAttribute('fill', on ? '#f6f4ef' : '#1f1f1f'));
   });
 
-  // with nothing selected, the center shows the current choice
   const shown = i >= 0
     ? w.items[i]
     : w.isBrush ? BRUSHES.find(b => b.id === currentBrush) : PALETTES[paletteIndex];
@@ -1290,7 +1786,18 @@ function closeWheel(apply) {
   wheelState = null;
 }
 
-// ---------- Mobile: palette sheet & swipe ----------
+// =====================================================================
+// Overlays: guide, mobile sheet, swipe hint
+// =====================================================================
+function openGuide() {
+  guideOverlay.hidden = false;
+  guideClose.focus();
+}
+
+function closeGuide() {
+  guideOverlay.hidden = true;
+}
+
 function openSheet() {
   sheet.classList.add('open');
   sheet.setAttribute('aria-hidden', 'false');
@@ -1303,17 +1810,20 @@ function closeSheet() {
   sheetBackdrop.hidden = true;
 }
 
+function overlayOpen() {
+  return !guideOverlay.hidden || !viewer.hidden || !confirmModal.hidden || sheet.classList.contains('open');
+}
+
 function maybeShowSwipeHint() {
-  let seen = false;
-  try { seen = localStorage.getItem('hueverb-swipe-hint') === '1'; } catch (e) {}
-  if (seen || !window.matchMedia('(max-width: 899px)').matches) return;
+  if (load('hueverb-swipe-hint') === '1') return;
+  if (!window.matchMedia('(max-width: 899px)').matches) return;
   swipeHint.classList.add('show');
   setTimeout(dismissSwipeHint, 6000);
 }
 
 function dismissSwipeHint() {
   swipeHint.classList.remove('show');
-  try { localStorage.setItem('hueverb-swipe-hint', '1'); } catch (e) {}
+  store('hueverb-swipe-hint', '1');
 }
 
 let touchStart = null;
@@ -1335,7 +1845,25 @@ canvas.addEventListener('touchend', e => {
   touchStart = null;
 });
 
-// ---------- Controls ----------
+// =====================================================================
+// Controls
+// =====================================================================
+// Entrance
+enterBtn.addEventListener('click', () => showEntranceStep('guide'));
+beginBtn.addEventListener('click', () => {
+  if (skipEntrance.checked) store('hueverb-skip-entrance', '1');
+  go('studio');
+});
+
+// Rooms
+document.querySelectorAll('[data-view]').forEach(b =>
+  b.addEventListener('click', () => go(b.dataset.view))
+);
+guideBtn.addEventListener('click', openGuide);
+guideClose.addEventListener('click', closeGuide);
+mbHelp.addEventListener('click', openGuide);
+
+// Sound
 micBtn.addEventListener('click', toggleMic);
 mbMic.addEventListener('click', toggleMic);
 trackBtn.addEventListener('click', toggleTrack);
@@ -1346,7 +1874,6 @@ fileInput.addEventListener('change', e => {
   e.target.value = ''; // allows re-uploading the same song
 });
 
-// let keyboard users open the file picker with Enter or Space
 uploadBtn.addEventListener('keydown', e => {
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault();
@@ -1354,17 +1881,10 @@ uploadBtn.addEventListener('keydown', e => {
   }
 });
 
-clearBtn.addEventListener('click', clearCanvas);
+// Canvas
+clearBtn.addEventListener('click', () => startNewCanvas());
+saveBtn.addEventListener('click', acquire);
 
-saveBtn.addEventListener('click', () => {
-  const slug = pieceTitle().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'untitled';
-  const link = document.createElement('a');
-  link.download = `hueverb-${slug}.png`;
-  link.href = canvas.toDataURL('image/png');
-  link.click();
-});
-
-// the desktop and mobile size sliders stay in sync
 function onSizeInput(e) {
   brushSize = parseFloat(e.target.value);
   sizeSlider.value = e.target.value;
@@ -1383,18 +1903,36 @@ document.addEventListener('mousemove', e => {
   if (wheelState && wheelState.opened) updateWheelSelection();
 });
 
-// Keyboard: arrows step, hold B/C for wheels, tap B/C to swap back, Esc cancels
+// Keyboard
 document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (dialogResolve) dialogResolve('cancel');
+    else if (!viewer.hidden) closeViewer();
+    else if (!guideOverlay.hidden) closeGuide();
+    else closeSheet();
+    closeWheel(false);
+    return;
+  }
+
   const t = e.target;
   if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+  // ? opens or closes the guide from the studio or collection
+  if (e.key === '?' && !views.entrance.classList.contains('active')) {
+    if (guideOverlay.hidden) openGuide();
+    else closeGuide();
+    return;
+  }
+
+  // painting shortcuts only work in the studio with nothing on top
+  if (!views.studio.classList.contains('active') || overlayOpen()) return;
 
   switch (e.key) {
     case 'ArrowRight': e.preventDefault(); stepBrush(1); return;
     case 'ArrowLeft': e.preventDefault(); stepBrush(-1); return;
     case 'ArrowDown': e.preventDefault(); stepPalette(1); return;
     case 'ArrowUp': e.preventDefault(); stepPalette(-1); return;
-    case 'Escape': closeWheel(false); closeSheet(); return;
   }
 
   const k = e.key.toLowerCase();
@@ -1419,10 +1957,24 @@ document.addEventListener('keyup', e => {
 
 window.addEventListener('blur', () => closeWheel(false));
 
-// ---------- Start ----------
+// Warn before leaving with an unsaved painting
+window.addEventListener('beforeunload', e => {
+  if (dirty) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
+// =====================================================================
+// Start
+// =====================================================================
+const guideTemplate = $('guideTemplate');
+document.querySelectorAll('[data-guide]').forEach(el => el.appendChild(guideTemplate.content.cloneNode(true)));
+
 buildPickers();
 buildWheel('brush');
 buildWheel('palette');
 setupCanvas();
 refreshAll();
+route();
 draw();
