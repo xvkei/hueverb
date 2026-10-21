@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hueverb — Turn Sound into Art</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>Hueverb</h1>
+    <p>Play a song or use your mic, and watch it paint.</p>
+  </header>
+
+  <div class="controls">
+    <button id="micBtn">🎤 Use Microphone</button>
+    <label class="file-label">
+      🎵 Upload Audio
+      <input type="file" id="fileInput" accept="audio/*" hidden />
+    </label>
+    <button id="clearBtn">🧹 Clear</button>
+    <button id="saveBtn">💾 Save PNG</button>
+  </div>
+
+  <p id="status">Choose a sound source to begin.</p>
+
+  <canvas id="canvas"></canvas>
+
+  <script src="script.js"></script>
+</body>
+</html>
