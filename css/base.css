@@ -1,0 +1,282 @@
+/* ---------- Variables ---------- */
+:root {
+  --wall: #f6f4ef;
+  --ink: #1f1f1f;
+  --muted: #6b6b6b;
+  --line: #e0dcd2;
+  --accent: #a3242c;
+  --serif: 'Cormorant Garamond', Georgia, serif;
+  --sans: 'Inter', system-ui, sans-serif;
+}
+
+/* ---------- Reset ---------- */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
+
+body {
+  background: var(--wall);
+  color: var(--ink);
+  font-family: var(--sans);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- Views (rooms) ---------- */
+.view { display: none; }
+#entrance.active { display: flex; }
+#studio.active { display: grid; }
+#collection.active { display: block; }
+.view.active { animation: fadeIn 0.5s ease both; }
+
+.view-entrance .site-header,
+.view-entrance .site-footer { display: none; }
+
+/* ---------- Header ---------- */
+.site-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  padding: clamp(0.9rem, 2.5vw, 1.75rem) clamp(1rem, 5vw, 4rem);
+  border-bottom: 1px solid var(--line);
+}
+
+.logo {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: clamp(1rem, 2.5vw, 1.35rem);
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+}
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: clamp(0.9rem, 3vw, 2rem);
+}
+
+.nav-link {
+  background: none;
+  border: none;
+  border-bottom: 1px solid transparent;
+  font-family: var(--serif);
+  font-size: clamp(1rem, 2.2vw, 1.15rem);
+  color: var(--muted);
+  cursor: pointer;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.nav-link:hover,
+.nav-link:focus-visible { color: var(--ink); outline: none; }
+
+.nav-link.current {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.help-dot {
+  width: 18px;
+  height: 18px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-family: var(--sans);
+  font-size: 0.65rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---------- Footer ---------- */
+.site-footer {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  padding: 1.25rem clamp(1rem, 5vw, 4rem);
+  border-top: 1px solid var(--line);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* ---------- Shared text styles ---------- */
+.eyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tool-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+kbd {
+  display: inline-block;
+  border: 1px solid #c9c4b8;
+  border-radius: 3px;
+  padding: 0 0.35rem;
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--wall);
+}
+
+/* ---------- Buttons ---------- */
+.link-btn {
+  background: none;
+  border: none;
+  border-bottom: 1px solid transparent;
+  font-family: var(--serif);
+  font-size: clamp(1.1rem, 2.4vw, 1.25rem);
+  color: var(--ink);
+  cursor: pointer;
+  padding: 0.5rem 0;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  text-align: left;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.link-btn:hover,
+.link-btn:focus-visible {
+  border-bottom-color: currentColor;
+  outline: none;
+}
+
+.link-btn.accent,
+.link-btn.active { color: var(--accent); }
+.link-btn.big { font-size: clamp(1.2rem, 2.8vw, 1.45rem); }
+
+.text-btn {
+  background: none;
+  border: none;
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  color: var(--muted);
+  cursor: pointer;
+  min-height: 44px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.text-btn:hover,
+.text-btn:focus-visible { color: var(--ink); outline: none; }
+.text-btn.armed { color: var(--accent); }
+
+/* ---------- Picker buttons (brushes, palettes, sizes) ---------- */
+.pick {
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  padding: 0.5rem 0.85rem;
+  min-height: 40px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+
+.pick:hover,
+.pick:focus-visible { border-color: var(--ink); outline: none; }
+
+.pick.active {
+  background: var(--ink);
+  color: var(--wall);
+  border-color: var(--ink);
+}
+
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.pick-name { margin-left: 0.4rem; }
+
+.size-icon-box {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.size-icon {
+  display: block;
+  border: 1.5px solid currentColor;
+}
+
+.size-ratio {
+  font-size: 0.7rem;
+  opacity: 0.7;
+  margin-left: 0.3rem;
+}
+
+input[type="range"] {
+  width: 100%;
+  max-width: 320px;
+  min-height: 32px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* ---------- Placard (studio and viewing screen) ---------- */
+.placard {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  padding: clamp(1rem, 3vw, 1.5rem);
+  max-width: 420px;
+}
+
+.pl-title {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(1.4rem, 3.5vw, 1.9rem);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.pl-medium {
+  font-family: var(--serif);
+  font-size: clamp(1rem, 2.2vw, 1.15rem);
+  margin-top: 0.35rem;
+}
+
+.pl-meta,
+.pl-palette {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 0.5rem;
+}
+
+.pl-palette::before {
+  content: '';
+  display: block;
+  width: 28px;
+  height: 1px;
+  background: var(--accent);
+  margin: 0.9rem 0 0.7rem;
+}

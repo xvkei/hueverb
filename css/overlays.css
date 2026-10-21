@@ -1,0 +1,122 @@
+/* ---------- Overlays (guide, dialogs, viewer) ---------- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(246, 244, 239, 0.97);
+  display: flex;
+  padding: clamp(1rem, 4vw, 3rem);
+  overflow-y: auto;
+  animation: fadeIn 0.25s ease both;
+}
+
+.overlay-panel {
+  position: relative;
+  width: 100%;
+  max-width: 960px;
+  margin: auto; /* centers, but scrolls safely when taller than the screen */
+  padding-top: 2.75rem;
+}
+
+.close-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: none;
+  border: none;
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  color: var(--muted);
+  cursor: pointer;
+  min-height: 44px;
+  padding: 0 0.25rem;
+}
+
+.close-btn:hover,
+.close-btn:focus-visible { color: var(--ink); outline: none; }
+
+/* ---------- Confirm dialog ---------- */
+.dialog {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  padding: clamp(1.25rem, 4vw, 2rem);
+  max-width: 440px;
+  width: 100%;
+  margin: auto;
+}
+
+.dialog h3 {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1.6rem;
+}
+
+.dialog p {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin-top: 0.5rem;
+}
+
+.dialog-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-top: 1.25rem;
+}
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(1.25rem + env(safe-area-inset-bottom));
+  transform: translate(-50%, 20px);
+  background: var(--ink);
+  color: var(--wall);
+  padding: 0.7rem 1rem;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  z-index: 60;
+  max-width: calc(100% - 2rem);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s, transform 0.25s;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+
+.toast button {
+  background: none;
+  border: none;
+  color: var(--wall);
+  font-family: var(--serif);
+  font-size: 1rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  min-height: 32px;
+}
+
+/* ---------- Desktop wheels ---------- */
+.wheel {
+  position: fixed;
+  width: 300px;
+  height: 300px;
+  transform: translate(-50%, -50%);
+  z-index: 40;
+  pointer-events: none;
+  animation: wheelIn 0.12s ease-out;
+}
+
+.wheel svg { width: 100%; height: 100%; display: block; }
+
+@keyframes wheelIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.92); }
+}
