@@ -7,6 +7,11 @@ import { state, currentSize, currentPalette, isTrackPlaying, pieceTitle } from '
 import { BRUSHES, BRUSH_MAP } from './brushes/index.js';
 
 // ---------- Elements ----------
+const sizeChip = $('sizeChip');
+const sizeChipBtn = $('sizeChipBtn');
+const sizeChipIcon = $('sizeChipIcon');
+const sizeChipLabel = $('sizeChipLabel');
+const sizeMenu = $('sizeMenu');
 const statusText = $('statusText');
 const statusDot = $('statusDot');
 const micBtn = $('micBtn');
@@ -62,6 +67,7 @@ export function updatePlacard() {
   const s = currentSize();
   plDims.textContent = `${s.w} × ${s.h} px`;
   plPalette.textContent = `${currentPalette().name} palette`;
+  updateSizeChip();
 }
 
 export function setStatusText(text) {
@@ -105,6 +111,29 @@ export function refreshAll() {
   else mbNote.textContent = 'Add a track or tap the mic';
 
   updatePlacard();
+}
+
+// The "Square · 1:1" label, shown only while the canvas is blank
+function updateSizeChip() {
+  const s = currentSize();
+  const blank = state.strokeCount === 0;
+  sizeChip.hidden = !blank;
+  if (!blank) closeSizeMenu();
+  sizeChipLabel.textContent = `${s.name} · ${s.ratio}`;
+  const r = s.w / s.h;
+  sizeChipIcon.style.width = (r >= 1 ? 14 : Math.round(14 * r)) + 'px';
+  sizeChipIcon.style.height = (r >= 1 ? Math.round(14 / r) : 14) + 'px';
+}
+
+export function toggleSizeMenu() {
+  const open = sizeMenu.hidden;
+  sizeMenu.hidden = !open;
+  sizeChipBtn.setAttribute('aria-expanded', String(open));
+}
+
+export function closeSizeMenu() {
+  sizeMenu.hidden = true;
+  sizeChipBtn.setAttribute('aria-expanded', 'false');
 }
 
 // Called every frame; only touches the page when a value actually changes
@@ -206,6 +235,7 @@ export function buildPickers({ onSizePick }) {
   SIZES.forEach(s => {
     sizePicker.appendChild(makeSizeButton(s, onSizePick));
     sheetSizes.appendChild(makeSizeButton(s, onSizePick));
+    sizeMenu.appendChild(makeSizeButton(s, onSizePick));
   });
   BRUSHES.forEach(b => {
     brushPicker.appendChild(makeBrushButton(b, b.label));

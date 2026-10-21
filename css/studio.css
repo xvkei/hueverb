@@ -12,7 +12,7 @@
 
 @media (min-width: 900px) {
   .gallery { grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr); }
-  .side { position: sticky; top: 2rem; }
+  .artwork { position: sticky; top: 2rem; }
 }
 
 /* ---------- Artwork ---------- */
@@ -158,11 +158,71 @@ canvas#canvas {
 
 .palette-picker {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
 }
+
+/* keep palette names on one line */
+.palette-picker .pick { white-space: nowrap; min-width: 0; gap: 3px; }
+.palette-picker .swatch { width: 8px; height: 8px; }
+.palette-picker .pick-name { overflow: hidden; text-overflow: ellipsis; }
 
 .hint {
   font-size: 0.75rem;
   color: var(--muted);
   line-height: 1.6;
+}
+
+/* ---------- Canvas size label (blank canvas only) ---------- */
+.size-chip {
+  position: absolute;
+  top: clamp(20px, calc(4vw + 8px), 48px);
+  right: clamp(20px, calc(4vw + 8px), 48px);
+  z-index: 2;
+}
+
+.size-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: #ffffff;
+  border: 1px solid var(--ink);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  padding: 0.4rem 0.65rem;
+  min-height: 36px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.size-chip-btn:hover,
+.size-chip-btn:focus-visible {
+  background: var(--ink);
+  color: var(--wall);
+  outline: none;
+}
+
+.size-chip-caret { color: var(--accent); font-size: 0.7rem; }
+
+.size-chip-btn:hover .size-chip-caret,
+.size-chip-btn:focus-visible .size-chip-caret { color: inherit; }
+
+.size-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 180px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  box-shadow: 0 12px 28px -16px rgba(0, 0, 0, 0.35);
+  padding: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.size-menu .pick {
+  width: 100%;
+  justify-content: flex-start;
+  min-height: 38px;
 }

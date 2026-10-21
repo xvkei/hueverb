@@ -41,10 +41,13 @@ function showEntranceStep(step) {
   stepGuide.classList.toggle('active', step === 'guide');
 }
 
-// Reads the address bar (#studio, #collection) so the back button works
 export function route() {
   const hash = location.hash.replace('#', '');
-  if (hash === 'studio' || hash === 'collection') {
+  if (hash === 'entrance') {
+    // the logo always opens the title wall, even if the entrance is set to skip
+    showView('entrance');
+    showEntranceStep('title');
+  } else if (hash === 'studio' || hash === 'collection') {
     showView(hash);
   } else if (load('hueverb-skip-entrance') === '1') {
     history.replaceState(null, '', '#studio');

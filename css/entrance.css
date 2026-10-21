@@ -81,14 +81,13 @@
 
 .guide-labels {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: clamp(0.6rem, 1.5vw, 1rem);
 }
 
-.guide-label {
-  background: #ffffff;
-  border: 1px solid var(--line);
-  padding: clamp(1rem, 2.5vw, 1.4rem);
+/* two columns from tablet size up, so the four labels form a balanced square */
+@media (min-width: 640px) {
+  .guide-labels { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 .numeral {
@@ -106,7 +105,7 @@
   margin: 0.2rem 0 0.45rem;
 }
 
-.guide-label p:last-child {
+.guide-label > p:not(.numeral) {
   font-size: 0.85rem;
   color: var(--muted);
   line-height: 1.7;
@@ -117,7 +116,7 @@
 
 @media (hover: none) and (pointer: coarse) {
   .desk-text { display: none; }
-  .touch-text { display: inline; }
+  .touch-text { display: revert; }
 }
 
 .guide-foot {
@@ -146,4 +145,125 @@
   font-family: var(--serif);
   font-style: italic;
   color: var(--muted);
+}
+
+/* ---------- Toolbar map (mobile guide) ---------- */
+.toolbar-map { margin-top: 0.4rem; }
+
+.tm-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  background: var(--wall);
+  padding: 10px 8px 8px;
+}
+
+.tm-icon {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--ink);
+}
+
+.tm-icon svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tm-serif { font-family: var(--serif); font-size: 1rem; }
+
+.tm-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: block;
+  margin-left: -2px;
+}
+
+.tm-dots i:nth-child(1) { background: #1d3557; margin-left: 0; }
+.tm-dots i:nth-child(2) { background: #e63946; }
+.tm-dots i:nth-child(3) { background: #f1c453; }
+
+/* the small red number badges */
+.tm-icon b,
+.tm-brushes b {
+  position: absolute;
+  top: -7px;
+  right: -6px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #ffffff;
+  font-family: var(--sans);
+  font-size: 0.6rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tm-time {
+  flex: 1;
+  font-family: var(--serif);
+  font-size: 0.9rem;
+}
+
+.tm-brushes {
+  position: relative;
+  display: flex;
+  gap: 3px;
+  margin-top: 4px;
+}
+
+.tm-brushes span {
+  flex: 1;
+  font-size: 0.65rem;
+  text-align: center;
+  padding: 4px 0;
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.tm-brushes span.on {
+  background: var(--ink);
+  color: var(--wall);
+  border-color: var(--ink);
+}
+
+.tm-legend {
+  list-style: none;
+  counter-reset: tm;
+  margin-top: 0.6rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.tm-legend li {
+  counter-increment: tm;
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.tm-legend li::before {
+  content: counter(tm);
+  color: var(--accent);
+  font-weight: 500;
+  width: 0.8rem;
+  flex-shrink: 0;
 }

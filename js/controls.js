@@ -10,7 +10,8 @@ import { toggleMic, toggleTrack, loadTrack } from './audio.js';
 import { acquire, startNewCanvas, closeViewer, cancelDialog, isDialogOpen } from './collection.js';
 import {
   setBrush, setPalette, stepBrush, stepPalette,
-  openGuide, closeGuide, openSheet, closeSheet, dismissSwipeHint
+  openGuide, closeGuide, openSheet, closeSheet, dismissSwipeHint,
+  toggleSizeMenu, closeSizeMenu
 } from './ui.js';
 import { isRoom } from './rooms.js';
 
@@ -34,6 +35,9 @@ const guideClose = $('guideClose');
 const guideOverlay = $('guideOverlay');
 const viewer = $('viewer');
 const sheet = $('paletteSheet');
+const sizeChip = $('sizeChip');
+const sizeChipBtn = $('sizeChipBtn');
+const sizeMenu = $('sizeMenu');
 
 function overlayOpen() {
   return !guideOverlay.hidden || !viewer.hidden || isDialogOpen() || sheet.classList.contains('open');
@@ -261,6 +265,18 @@ function initButtons() {
   guideBtn.addEventListener('click', openGuide);
   mbHelp.addEventListener('click', openGuide);
   guideClose.addEventListener('click', closeGuide);
+
+    // canvas size label: open the menu, close it after a pick or a click elsewhere
+  sizeChipBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    toggleSizeMenu();
+  });
+  sizeMenu.addEventListener('click', e => {
+    if (e.target.closest('.pick')) closeSizeMenu();
+  });
+  document.addEventListener('click', e => {
+    if (!sizeChip.contains(e.target)) closeSizeMenu();
+  });
 }
 
 // =====================================================================
@@ -281,6 +297,7 @@ function initKeyboard() {
       else if (!guideOverlay.hidden) closeGuide();
       else closeSheet();
       closeWheel(false);
+      closeSizeMenu();
       return;
     }
 
