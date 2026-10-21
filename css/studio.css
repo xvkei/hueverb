@@ -1,149 +1,168 @@
-/* ---------- Entrance ---------- */
-.entrance {
-  position: relative;
-  min-height: 100vh;
-  min-height: 100svh;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  padding: 2rem clamp(1rem, 5vw, 4rem);
+/* ---------- Studio layout ---------- */
+.gallery {
+  flex: 1;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: clamp(1.25rem, 4vw, 3.5rem) clamp(1rem, 5vw, 4rem);
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(1.5rem, 4vw, 3.5rem);
+  align-items: start;
 }
 
-.ghost {
-  position: absolute;
-  inset: 0;
+@media (min-width: 900px) {
+  .gallery { grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr); }
+  .side { position: sticky; top: 2rem; }
+}
+
+/* ---------- Artwork ---------- */
+.artwork {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.frame-wrap {
   width: 100%;
-  height: 100%;
-  opacity: 0.16;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.frame {
+  width: 100%;
+  background: var(--ink);
+  padding: clamp(6px, 1.2vw, 12px);
+  box-shadow: 0 18px 40px -20px rgba(0, 0, 0, 0.35);
+}
+
+.mat {
+  position: relative;
+  background: #ffffff;
+  padding: clamp(12px, 4vw, 40px);
+}
+
+canvas#canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  touch-action: pan-y; /* vertical scroll still works; horizontal swipes change brushes */
+}
+
+.hud {
+  position: absolute;
+  top: clamp(20px, calc(4vw + 8px), 48px);
+  left: clamp(20px, calc(4vw + 8px), 48px);
+  background: rgba(31, 31, 31, 0.85);
+  color: var(--wall);
+  font-size: 0.75rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 4px;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.2s, transform 0.2s;
   pointer-events: none;
 }
 
-.entrance-step {
-  position: relative;
+.hud.show { opacity: 1; transform: none; }
+
+.swipe-hint {
   display: none;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  width: 100%;
-}
-
-.entrance-step.active {
-  display: flex;
-  animation: fadeIn 0.7s ease both;
-}
-
-.title-wall {
-  font-family: var(--serif);
-  font-weight: 500;
-  font-size: clamp(2.8rem, 11vw, 6.5rem);
-  letter-spacing: 0.18em;
-  padding-left: 0.18em; /* balances the letter spacing so it looks centered */
-  text-transform: uppercase;
-  line-height: 1;
-  margin-top: 1rem;
-}
-
-.title-tagline {
-  font-family: var(--serif);
-  font-style: italic;
-  color: var(--muted);
-  font-size: clamp(1.1rem, 2.6vw, 1.5rem);
-  margin-top: 0.75rem;
-}
-
-.rule {
-  display: block;
-  width: 40px;
-  height: 1px;
-  background: var(--accent);
-  margin: clamp(1.5rem, 4vw, 2.25rem) auto;
-}
-
-.entrance-note {
-  margin-top: clamp(2.5rem, 8vh, 5rem);
+  position: absolute;
+  left: 50%;
+  bottom: clamp(20px, calc(4vw + 12px), 52px);
+  transform: translateX(-50%);
+  background: rgba(31, 31, 31, 0.85);
+  color: var(--wall);
   font-size: 0.75rem;
-  color: var(--muted);
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
-/* ---------- Visitor guide ---------- */
-.guide-panel {
+.track-progress {
   width: 100%;
-  max-width: 920px;
-  text-align: left;
+  height: 2px;
+  background: var(--line);
 }
 
-.guide-title {
-  font-family: var(--serif);
-  font-weight: 400;
-  font-size: clamp(1.8rem, 4.5vw, 2.6rem);
-  margin: 0.25rem 0 clamp(1rem, 3vw, 1.75rem);
+.track-fill {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
 }
 
-.guide-labels {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
-  gap: clamp(0.6rem, 1.5vw, 1rem);
-}
-
-.guide-label {
-  background: #ffffff;
-  border: 1px solid var(--line);
-  padding: clamp(1rem, 2.5vw, 1.4rem);
-}
-
-.numeral {
-  font-family: var(--serif);
-  color: var(--accent);
-  font-size: 1rem;
-}
-
-.guide-label h3 {
-  font-family: var(--serif);
-  font-style: italic;
-  font-weight: 400;
-  font-size: clamp(1.25rem, 2.6vw, 1.5rem);
-  line-height: 1.15;
-  margin: 0.2rem 0 0.45rem;
-}
-
-.guide-label p:last-child {
-  font-size: 0.85rem;
-  color: var(--muted);
-  line-height: 1.7;
-}
-
-/* show keyboard keys on computers, touch instructions on phones and tablets */
-.touch-text { display: none; }
-
-@media (hover: none) and (pointer: coarse) {
-  .desk-text { display: none; }
-  .touch-text { display: inline; }
-}
-
-.guide-foot {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin-top: clamp(1.25rem, 3vw, 2rem);
-}
-
-.skip {
+.now-playing {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
   font-size: 0.85rem;
   color: var(--muted);
-  cursor: pointer;
-  min-height: 44px;
+  text-align: center;
 }
 
-.skip input { accent-color: var(--accent); width: 16px; height: 16px; }
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--line);
+  flex-shrink: 0;
+}
 
-.guide-resume {
-  margin-top: 1.25rem;
-  font-family: var(--serif);
-  font-style: italic;
+.dot.live {
+  background: var(--accent);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse { 50% { opacity: 0.35; } }
+
+/* ---------- Side panel ---------- */
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1.25rem, 3vw, 2rem);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.5rem;
+}
+
+/* ---------- Tools ---------- */
+.tools {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  border-top: 1px solid var(--line);
+  padding-top: clamp(1rem, 3vw, 1.5rem);
+}
+
+.tool {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.palette-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+}
+
+.hint {
+  font-size: 0.75rem;
   color: var(--muted);
+  line-height: 1.6;
 }
