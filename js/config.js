@@ -5,7 +5,6 @@ import { hexToRgb } from './utils.js';
 
 // ---------- Settings you can tweak ----------
 export const PAPER = '#f3eee4';        // canvas background color
-export const SENSITIVITY = 1.6;        // lower = more strokes, higher = fewer (try 1.3–2.2)
 export const MIN_GAP_MS = 120;         // minimum time between new strokes
 export const MAX_STROKE_FRAMES = 240;  // longest a single stroke can flow (~4 seconds)
 export const PITCH_BANDS = 24;         // musical (log-spaced) bands used to measure pitch

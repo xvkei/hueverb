@@ -47,6 +47,7 @@ export function resetCanvas() {
   state.voiceUsed = !!state.micStream;
   state.paintSeconds = 0;
   state.dirty = false;
+  state.customTitle = null;
 }
 
 // Tiny light and dark specks so the canvas feels like real paper

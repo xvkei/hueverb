@@ -84,7 +84,8 @@
 
     <aside class="side">
       <div class="placard">
-        <h2 id="plTitle" class="pl-title">Untitled</h2>
+        <h2 id="plTitle" class="pl-title renamable" title="Click to rename">Untitled</h2>
+        <button id="renameBtn" class="rename-link">Rename</button>
         <p id="plMedium" class="pl-medium">Sound on paper</p>
         <p class="pl-meta"><span id="plStrokes">0 strokes</span> · <span id="plTime">0:00</span> · <span id="plDims">1600 × 1600 px</span></p>
         <p id="plPalette" class="pl-palette">Kandinsky palette</p>
@@ -118,8 +119,12 @@
           <label class="tool-label" for="sizeSlider">Brush size</label>
           <input type="range" id="sizeSlider" min="0.4" max="2" step="0.1" value="1" />
         </div>
+        <div class="tool">
+          <label class="tool-label" for="sensSlider">Sensitivity</label>
+          <input type="range" id="sensSlider" min="0" max="100" step="1" value="50" />
+        <div class="range-ends" aria-hidden="true"><span>Calm</span><span>Lively</span></div>
+        </div>
       </div>
-
       <p class="hint">← → brushes · ↑ ↓ palettes · hold B or C for wheels · ? for the guide</p>
     </aside>
   </main>
@@ -185,6 +190,10 @@
         <label class="tool-label" for="sizeSliderM">Brush size</label>
         <input type="range" id="sizeSliderM" min="0.4" max="2" step="0.1" value="1" />
     </div>
+    <div class="sheet-size">
+        <label class="tool-label" for="sensSliderM">Sensitivity</label>
+        <input type="range" id="sensSliderM" min="0" max="100" step="1" value="50" />
+    </div>
     <button id="sheetDone" class="sheet-done">Done</button>
 </div>
 
@@ -221,21 +230,34 @@
           <div class="viewer-frame"><div class="viewer-mat"><img id="viewerImg" alt="" /></div></div>
         </div>
         <div>
-          <div class="placard">
-            <h2 id="vTitle" class="pl-title"></h2>
+        <div class="placard">
+            <h2 id="vTitle" class="pl-title renamable" title="Click to rename"></h2>
+            <button id="vRenameBtn" class="rename-link">Rename</button>
             <p id="vMedium" class="pl-medium"></p>
             <p id="vMeta" class="pl-meta"></p>
             <p id="vDims" class="pl-meta"></p>
             <p id="vDate" class="pl-palette"></p>
-          </div>
-          <div class="viewer-actions">
+        </div>
+        <div class="viewer-actions">
             <button id="viewerDownload" class="link-btn accent">Download print (PNG) →</button>
+            <button id="viewerFramed" class="link-btn">Download framed print →</button>
             <button id="viewerRemove" class="text-btn">Remove from collection</button>
-          </div>
+        </div>
         </div>
       </div>
     </div>
   </div>
+
+<!-- ========== Unsupported browser notice ========== -->
+<div id="unsupported" class="overlay" hidden>
+  <div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="unsupportedTitle">
+    <h3 id="unsupportedTitle">This browser can't hear the exhibition</h3>
+    <p>Hueverb listens to sound with the Web Audio API, which this browser doesn't support. Try the latest Chrome, Edge, Firefox, or Safari.</p>
+    <div class="dialog-actions">
+      <button id="unsupportedClose" class="text-btn">Look around anyway</button>
+    </div>
+  </div>
+</div>
 
   <!-- ========== Toast ========== -->
   <div id="toast" class="toast" role="status">

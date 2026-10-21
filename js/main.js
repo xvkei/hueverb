@@ -2,14 +2,14 @@
 // Hueverb — a gallery of heard things
 // main.js — starts everything and runs the animation loop
 // =====================================================================
-import { $, load } from './utils.js';
+import { $, load, clamp } from './utils.js';
 import { SIZES } from './config.js';
 import { state, isPainting } from './state.js';
 import { setupCanvas, fitFrame, initCanvas } from './canvas.js';
 import { analyze, SILENCE } from './audio.js';
 import { updateStrokes } from './strokes.js';
 import { runEveryFrame } from './brushes/index.js';
-import { buildPickers, refreshAll, updatePlacard, updateTimers } from './ui.js';
+import { buildPickers, refreshAll, updatePlacard, updateTimers, openLayer, closeLayer } from './ui.js';
 import { initCollection, renderCollection, startNewCanvas } from './collection.js';
 import { initRooms, route, setRoomHooks } from './rooms.js';
 import { initControls } from './controls.js';
@@ -18,9 +18,12 @@ import { initControls } from './controls.js';
 const guideTemplate = $('guideTemplate');
 document.querySelectorAll('[data-guide]').forEach(el => el.appendChild(guideTemplate.content.cloneNode(true)));
 
-// ---------- Remember the last canvas shape ----------
+// ---------- Remember the last canvas shape and sensitivity ----------
 const savedSize = load('hueverb-size');
 if (SIZES.some(s => s.id === savedSize)) state.sizeId = savedSize;
+
+const savedSens = parseFloat(load('hueverb-sensitivity'));
+if (!isNaN(savedSens)) state.sensitivity = clamp(savedSens, 0, 1);
 
 // ---------- Set up the pieces ----------
 buildPickers({ onSizePick: id => startNewCanvas(id) });
@@ -35,6 +38,19 @@ setRoomHooks({
 });
 refreshAll();
 route();
+
+// ---------- Browser check ----------
+// Without the Web Audio API there's nothing to listen with, so explain instead of failing silently
+if (!(window.AudioContext || window.webkitAudioContext)) {
+  const notice = $('unsupported');
+  const closeBtn = $('unsupportedClose');
+  notice.hidden = false;
+  openLayer(notice, closeBtn);
+  closeBtn.addEventListener('click', () => {
+    notice.hidden = true;
+    closeLayer(notice);
+  });
+}
 
 // ---------- Animation loop ----------
 let lastTick = null;

@@ -253,6 +253,7 @@ input[type="range"] {
 
 /* ---------- Placard (studio and viewing screen) ---------- */
 .placard {
+  position: relative;
   background: #ffffff;
   border: 1px solid var(--line);
   padding: clamp(1rem, 3vw, 1.5rem);
@@ -288,4 +289,60 @@ input[type="range"] {
   height: 1px;
   background: var(--accent);
   margin: 0.9rem 0 0.7rem;
+}
+
+/* ---------- Renaming ---------- */
+.placard .pl-title { padding-right: 3.75rem; } /* room for the Rename link */
+
+.pl-title.renamable { cursor: text; }
+
+.pl-title.renamable:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 5px;
+}
+
+.rename-link {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.75rem;
+  background: none;
+  border: none;
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  color: var(--muted);
+  cursor: pointer;
+  min-height: 32px;
+  padding: 0 0.25rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.rename-link:hover,
+.rename-link:focus-visible { color: var(--accent); outline: none; }
+
+.title-input {
+  width: 100%;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: clamp(1.4rem, 3.5vw, 1.9rem); /* stays above 16px, so iPhones don't zoom in */
+  line-height: 1.15;
+  color: var(--ink);
+  background: var(--wall);
+  border: none;
+  border-bottom: 1px solid var(--accent);
+  padding: 0.1rem 0.25rem;
+  outline: none;
+}
+
+/* ---------- Slider end labels ---------- */
+.range-ends {
+  display: flex;
+  justify-content: space-between;
+  max-width: 320px;
+  margin-top: -0.35rem;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 0.95rem;
+  color: var(--muted);
 }

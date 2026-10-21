@@ -2,10 +2,10 @@
 // audio.js — microphone, tracks, and turning sound into features
 // =====================================================================
 import { $, clamp, titleFromFile } from './utils.js';
-import { PITCH_BANDS, SENSITIVITY, MIN_GAP_MS } from './config.js';
+import { PITCH_BANDS, MIN_GAP_MS } from './config.js';
 import { state, isPainting } from './state.js';
 import { endStroke } from './strokes.js';
-import { refreshAll, setStatusText, maybeShowSwipeHint } from './ui.js';
+import { refreshAll, showToast, maybeShowSwipeHint } from './ui.js';
 
 const fileInput = $('fileInput');
 
@@ -65,6 +65,11 @@ export async function toggleMic() {
 }
 
 async function startMic() {
+  // microphone access needs a modern browser and a secure page (https or localhost)
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showToast("This browser doesn't allow microphone access here. Try a current browser over HTTPS");
+    return;
+  }
   try {
     ensureAudio();
     if (!isPainting()) resetTracking();
@@ -78,9 +83,15 @@ async function startMic() {
     refreshAll();
     maybeShowSwipeHint();
   } catch (err) {
-    refreshAll();
-    setStatusText('Microphone access was blocked');
     console.error(err);
+    refreshAll();
+    if (err.name === 'NotAllowedError') {
+      showToast("Microphone access was blocked. Allow it in your browser's site settings to paint with your voice");
+    } else if (err.name === 'NotFoundError') {
+      showToast('No microphone was found');
+    } else {
+      showToast("Couldn't start the microphone");
+    }
   }
 }
 
@@ -194,9 +205,12 @@ export function analyze(now) {
   const span = Math.max(0.12, pitchHi - pitchLo);
   const pitch = clamp((rawPitch - (mid - span / 2)) / span, 0, 1);
 
-  // A "new sound" = the spectrum suddenly changed more than usual
+  // A "new sound" = the spectrum suddenly changed more than usual.
+  // The sensitivity slider moves both thresholds: lively makes new strokes easier to trigger.
+  const threshold = 2.2 - state.sensitivity * 1.2;
+  const minFlux = 0.025 - state.sensitivity * 0.02;
   const punch = flux / (fluxAvg + 0.0001);
-  const onset = punch > SENSITIVITY && flux > 0.015 && rms > gate && now - lastOnset > MIN_GAP_MS;
+  const onset = punch > threshold && flux > minFlux && rms > gate && now - lastOnset > MIN_GAP_MS;
   if (onset) lastOnset = now;
   fluxAvg = fluxAvg * 0.9 + flux * 0.1;
 

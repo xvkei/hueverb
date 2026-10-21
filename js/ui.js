@@ -1,5 +1,5 @@
 // =====================================================================
-// ui.js — placard, status, pickers, toasts, and the guide and sheet overlays
+// ui.js — placard, status, pickers, messages, overlays, and renaming
 // =====================================================================
 import { $, formatTime, joinList, isMobileLayout, store, load } from './utils.js';
 import { SIZES, PALETTES } from './config.js';
@@ -7,11 +7,6 @@ import { state, currentSize, currentPalette, isTrackPlaying, pieceTitle } from '
 import { BRUSHES, BRUSH_MAP } from './brushes/index.js';
 
 // ---------- Elements ----------
-const sizeChip = $('sizeChip');
-const sizeChipBtn = $('sizeChipBtn');
-const sizeChipIcon = $('sizeChipIcon');
-const sizeChipLabel = $('sizeChipLabel');
-const sizeMenu = $('sizeMenu');
 const statusText = $('statusText');
 const statusDot = $('statusDot');
 const micBtn = $('micBtn');
@@ -29,6 +24,12 @@ const plTime = $('plTime');
 const plDims = $('plDims');
 const plPalette = $('plPalette');
 
+const sizeChip = $('sizeChip');
+const sizeChipBtn = $('sizeChipBtn');
+const sizeChipIcon = $('sizeChipIcon');
+const sizeChipLabel = $('sizeChipLabel');
+const sizeMenu = $('sizeMenu');
+
 const sizePicker = $('sizePicker');
 const brushPicker = $('brushPicker');
 const palettePicker = $('palettePicker');
@@ -44,6 +45,7 @@ const sheet = $('paletteSheet');
 const sheetBackdrop = $('sheetBackdrop');
 const sheetPalettes = $('sheetPalettes');
 const sheetSizes = $('sheetSizes');
+const sheetDone = $('sheetDone');
 
 const guideOverlay = $('guideOverlay');
 const guideClose = $('guideClose');
@@ -68,6 +70,29 @@ export function updatePlacard() {
   plDims.textContent = `${s.w} × ${s.h} px`;
   plPalette.textContent = `${currentPalette().name} palette`;
   updateSizeChip();
+}
+
+// The "Square · 1:1" label, shown only while the canvas is blank
+function updateSizeChip() {
+  const s = currentSize();
+  const blank = state.strokeCount === 0;
+  sizeChip.hidden = !blank;
+  if (!blank) closeSizeMenu();
+  sizeChipLabel.textContent = `${s.name} · ${s.ratio}`;
+  const r = s.w / s.h;
+  sizeChipIcon.style.width = (r >= 1 ? 14 : Math.round(14 * r)) + 'px';
+  sizeChipIcon.style.height = (r >= 1 ? Math.round(14 / r) : 14) + 'px';
+}
+
+export function toggleSizeMenu() {
+  const open = sizeMenu.hidden;
+  sizeMenu.hidden = !open;
+  sizeChipBtn.setAttribute('aria-expanded', String(open));
+}
+
+export function closeSizeMenu() {
+  sizeMenu.hidden = true;
+  sizeChipBtn.setAttribute('aria-expanded', 'false');
 }
 
 export function setStatusText(text) {
@@ -111,29 +136,6 @@ export function refreshAll() {
   else mbNote.textContent = 'Add a track or tap the mic';
 
   updatePlacard();
-}
-
-// The "Square · 1:1" label, shown only while the canvas is blank
-function updateSizeChip() {
-  const s = currentSize();
-  const blank = state.strokeCount === 0;
-  sizeChip.hidden = !blank;
-  if (!blank) closeSizeMenu();
-  sizeChipLabel.textContent = `${s.name} · ${s.ratio}`;
-  const r = s.w / s.h;
-  sizeChipIcon.style.width = (r >= 1 ? 14 : Math.round(14 * r)) + 'px';
-  sizeChipIcon.style.height = (r >= 1 ? Math.round(14 / r) : 14) + 'px';
-}
-
-export function toggleSizeMenu() {
-  const open = sizeMenu.hidden;
-  sizeMenu.hidden = !open;
-  sizeChipBtn.setAttribute('aria-expanded', String(open));
-}
-
-export function closeSizeMenu() {
-  sizeMenu.hidden = true;
-  sizeChipBtn.setAttribute('aria-expanded', 'false');
 }
 
 // Called every frame; only touches the page when a value actually changes
@@ -186,6 +188,85 @@ export function showToast(text, actionLabel, action) {
   toast.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toast.classList.remove('show'), 4000);
+}
+
+// =====================================================================
+// Layers: overlays that sit on top of the page
+// While a layer is open, everything else is "inert", so Tab stays inside
+// the layer and clicks behind it are ignored. Closing a layer returns
+// focus to whatever opened it.
+// =====================================================================
+const layers = [];
+
+function updateInert() {
+  const top = layers[layers.length - 1];
+  for (const child of document.body.children) {
+    if (child.tagName === 'SCRIPT' || child.tagName === 'TEMPLATE') continue;
+    child.inert = !!top && child !== top.el && !top.keep.includes(child) && child !== toast;
+  }
+}
+
+// keep: extra elements that must stay clickable (like the sheet's backdrop)
+export function openLayer(el, focusEl, keep = []) {
+  layers.push({ el, keep, opener: document.activeElement });
+  updateInert();
+  (focusEl || el).focus();
+}
+
+export function closeLayer(el) {
+  const i = layers.findIndex(l => l.el === el);
+  if (i === -1) return;
+  const [layer] = layers.splice(i, 1);
+  updateInert();
+  if (layer.opener && document.contains(layer.opener)) layer.opener.focus();
+}
+
+// =====================================================================
+// Renaming
+// Turns a title into a text field. onSave receives the new name
+// ('' means "use the automatic title").
+// =====================================================================
+export function startRename({ titleEl, trigger, value, onSave }) {
+  if (titleEl.hidden) return; // already editing
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'title-input';
+  input.maxLength = 80;
+  input.value = value;
+  input.setAttribute('aria-label', 'Artwork title');
+
+  titleEl.hidden = true;
+  if (trigger) trigger.hidden = true;
+  titleEl.after(input);
+  input.focus();
+  input.select();
+
+  let done = false;
+  const finish = (save, refocus) => {
+    if (done) return;
+    done = true;
+    const name = input.value.trim().slice(0, 80);
+    input.remove();
+    titleEl.hidden = false;
+    if (trigger) {
+      trigger.hidden = false;
+      if (refocus) trigger.focus(); // keyboard users land back on the Rename link
+    }
+    if (save) onSave(name);
+  };
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      finish(true, true);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation(); // cancel the rename without closing the viewer
+      finish(false, true);
+    }
+  });
+  input.addEventListener('blur', () => finish(true, false));
 }
 
 // =====================================================================
@@ -305,24 +386,31 @@ export function stepPalette(dir) {
 // Guide overlay, mobile sheet, swipe hint
 // =====================================================================
 export function openGuide() {
+  if (!guideOverlay.hidden) return;
   guideOverlay.hidden = false;
-  guideClose.focus();
+  openLayer(guideOverlay, guideClose);
 }
 
 export function closeGuide() {
+  if (guideOverlay.hidden) return;
   guideOverlay.hidden = true;
+  closeLayer(guideOverlay);
 }
 
 export function openSheet() {
+  if (sheet.classList.contains('open')) return;
   sheet.classList.add('open');
   sheet.setAttribute('aria-hidden', 'false');
   sheetBackdrop.hidden = false;
+  openLayer(sheet, sheet.querySelector('.pick.active') || sheetDone, [sheetBackdrop]);
 }
 
 export function closeSheet() {
+  if (!sheet.classList.contains('open')) return;
   sheet.classList.remove('open');
   sheet.setAttribute('aria-hidden', 'true');
   sheetBackdrop.hidden = true;
+  closeLayer(sheet);
 }
 
 export function maybeShowSwipeHint() {

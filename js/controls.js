@@ -1,9 +1,9 @@
 // =====================================================================
 // controls.js — buttons, keyboard shortcuts, the desktop wheels, and swipes
 // =====================================================================
-import { $, clamp } from './utils.js';
+import { $, clamp, store } from './utils.js';
 import { PALETTES } from './config.js';
-import { state } from './state.js';
+import { state, pieceTitle } from './state.js';
 import { canvas } from './canvas.js';
 import { BRUSHES } from './brushes/index.js';
 import { toggleMic, toggleTrack, loadTrack } from './audio.js';
@@ -11,7 +11,7 @@ import { acquire, startNewCanvas, closeViewer, cancelDialog, isDialogOpen } from
 import {
   setBrush, setPalette, stepBrush, stepPalette,
   openGuide, closeGuide, openSheet, closeSheet, dismissSwipeHint,
-  toggleSizeMenu, closeSizeMenu
+  toggleSizeMenu, closeSizeMenu, startRename, updatePlacard
 } from './ui.js';
 import { isRoom } from './rooms.js';
 
@@ -38,6 +38,10 @@ const sheet = $('paletteSheet');
 const sizeChip = $('sizeChip');
 const sizeChipBtn = $('sizeChipBtn');
 const sizeMenu = $('sizeMenu');
+const plTitle = $('plTitle');
+const renameBtn = $('renameBtn');
+const sensSlider = $('sensSlider');
+const sensSliderM = $('sensSliderM');
 
 function overlayOpen() {
   return !guideOverlay.hidden || !viewer.hidden || isDialogOpen() || sheet.classList.contains('open');
@@ -277,6 +281,33 @@ function initButtons() {
   document.addEventListener('click', e => {
     if (!sizeChip.contains(e.target)) closeSizeMenu();
   });
+
+    // sensitivity: desktop and mobile sliders stay in sync, and the choice is remembered
+  const sensValue = String(Math.round(state.sensitivity * 100));
+  sensSlider.value = sensValue;
+  sensSliderM.value = sensValue;
+  const onSensInput = e => {
+    state.sensitivity = Number(e.target.value) / 100;
+    sensSlider.value = e.target.value;
+    sensSliderM.value = e.target.value;
+    store('hueverb-sensitivity', String(state.sensitivity));
+  };
+  sensSlider.addEventListener('input', onSensInput);
+  sensSliderM.addEventListener('input', onSensInput);
+
+  // renaming the painting in progress
+  const renameStudio = () =>
+    startRename({
+      titleEl: plTitle,
+      trigger: renameBtn,
+      value: pieceTitle(),
+      onSave: name => {
+        state.customTitle = name || null; // an empty name brings back the automatic title
+        updatePlacard();
+      }
+    });
+  plTitle.addEventListener('click', renameStudio);
+  renameBtn.addEventListener('click', renameStudio);
 }
 
 // =====================================================================
