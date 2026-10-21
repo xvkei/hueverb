@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Hueverb — A Gallery of Heard Things</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -20,7 +20,12 @@
       <div class="frame">
         <div class="mat">
           <canvas id="canvas" aria-label="Painting generated from sound"></canvas>
+          <div id="hud" class="hud" aria-live="polite"></div>
+          <div id="swipeHint" class="swipe-hint">Swipe the canvas to change brushes</div>
         </div>
+      </div>
+      <div id="trackProgress" class="track-progress" hidden>
+        <div id="trackFill" class="track-fill"></div>
       </div>
       <p class="now-playing">
         <span id="statusDot" class="dot"></span>
@@ -37,11 +42,12 @@
       </div>
 
       <nav class="actions" aria-label="Actions">
-        <button id="micBtn" class="link-btn">Listen</button>
+        <button id="micBtn" class="link-btn desktop-only">Listen</button>
         <label id="uploadBtn" class="link-btn" tabindex="0">
-          Upload a track
+          <span id="uploadLabel">Upload a track</span>
           <input type="file" id="fileInput" accept="audio/*" hidden />
         </label>
+        <button id="trackBtn" class="link-btn desktop-only" hidden>Pause track</button>
         <button id="clearBtn" class="link-btn">New canvas</button>
         <button id="saveBtn" class="link-btn accent">Acquire →</button>
       </nav>
@@ -61,7 +67,7 @@
         </div>
       </div>
 
-      <p class="hint">Keys 1–5 switch brushes · P changes palette</p>
+      <p class="hint">← → brushes · ↑ ↓ palettes · hold B or C for wheels</p>
     </aside>
   </main>
 
@@ -69,6 +75,45 @@
     <span>Hueverb — every sound leaves a mark</span>
     <span>Made with the Web Audio API and Canvas</span>
   </footer>
+
+  <!-- Mobile toolbar -->
+  <div class="mobile-bar">
+    <div class="mb-progress"><div id="mbFill" class="track-fill"></div></div>
+    <div class="mb-row">
+      <button id="mbTrack" class="mb-icon" data-state="none" aria-label="Add a track">
+        <svg class="i-note" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" /></svg>
+        <svg class="i-play" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z" /></svg>
+        <svg class="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14" /></svg>
+      </button>
+      <button id="mbMic" class="mb-icon" aria-label="Listen">
+        <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
+      </button>
+      <div class="mb-info">
+        <span id="mbTime" class="mb-time">0:00</span>
+        <span id="mbNote" class="mb-note">Add a track or tap the mic</span>
+      </div>
+      <button id="mbPalette" class="mb-icon" aria-label="Choose palette">
+        <span id="mbDots" class="mb-dots"></span>
+      </button>
+    </div>
+    <div id="mbBrushes" class="mb-brushes"></div>
+  </div>
+
+  <!-- Mobile palette sheet -->
+  <div id="sheetBackdrop" class="sheet-backdrop" hidden></div>
+  <div id="paletteSheet" class="sheet" aria-hidden="true">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <span class="tool-label">Palette</span>
+      <span class="sheet-note">changes new strokes</span>
+    </div>
+    <div id="sheetPalettes" class="sheet-list"></div>
+    <div class="sheet-size">
+      <label class="tool-label" for="sizeSliderM">Size</label>
+      <input type="range" id="sizeSliderM" min="0.4" max="2" step="0.1" value="1" />
+    </div>
+    <button id="sheetDone" class="sheet-done">Done</button>
+  </div>
 
   <script src="script.js"></script>
 </body>
