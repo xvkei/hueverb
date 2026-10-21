@@ -2,13 +2,20 @@
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const micBtn = document.getElementById('micBtn');
+const uploadBtn = document.getElementById('uploadBtn');
 const fileInput = document.getElementById('fileInput');
 const clearBtn = document.getElementById('clearBtn');
 const saveBtn = document.getElementById('saveBtn');
-const statusEl = document.getElementById('status');
+const statusText = document.getElementById('statusText');
+const statusDot = document.getElementById('statusDot');
 const brushPicker = document.getElementById('brushPicker');
 const palettePicker = document.getElementById('palettePicker');
 const sizeSlider = document.getElementById('sizeSlider');
+const plTitle = document.getElementById('plTitle');
+const plMedium = document.getElementById('plMedium');
+const plStrokes = document.getElementById('plStrokes');
+const plTime = document.getElementById('plTime');
+const plPalette = document.getElementById('plPalette');
 
 // ---------- Settings you can tweak ----------
 const PAPER = '#f3eee4';        // canvas background color
@@ -16,14 +23,19 @@ const SENSITIVITY = 1.6;        // lower = more strokes, higher = fewer (try 1.3
 const MIN_GAP_MS = 120;         // minimum time between new strokes
 const MAX_STROKE_FRAMES = 240;  // longest a single stroke can flow (~4 seconds)
 const BRISTLES = 26;            // number of "hairs" in the oil brush
+const LOGICAL = 1000;           // drawing coordinates (0–1000), independent of screen size
+const RESOLUTION = 1600;        // actual pixels; CSS scales the canvas to fit any screen
 
 const BRUSHES = [
-  { id: 'auto',       label: '✨ Auto',       hint: 'Let the sound choose the brush' },
-  { id: 'bristle',    label: '🖌️ Oil',        hint: 'Bristle brush with dry, streaky edges' },
-  { id: 'watercolor', label: '💧 Watercolor', hint: 'Soft, see-through washes' },
-  { id: 'ink',        label: '✒️ Ink',        hint: 'Calligraphy pen, thick and thin' },
-  { id: 'spray',      label: '🫧 Dots',       hint: 'Pointillism: strokes made of dots' }
+  { id: 'auto',       label: 'Auto',       hint: 'Let the sound choose the brush' },
+  { id: 'bristle',    label: 'Oil',        hint: 'Bristle brush with dry, streaky edges' },
+  { id: 'watercolor', label: 'Watercolor', hint: 'Soft, see-through washes' },
+  { id: 'ink',        label: 'Ink',        hint: 'Calligraphy pen, thick and thin' },
+  { id: 'spray',      label: 'Dots',       hint: 'Pointillism: strokes made of dots' }
 ];
+
+// How each brush is named on the placard's "medium" line
+const MEDIUM_NAMES = { bristle: 'oil', watercolor: 'watercolor', ink: 'ink', spray: 'pigment dots' };
 
 // Artist-inspired palettes: deep colors first (low sounds), bright last (high sounds)
 const PALETTES = [
@@ -39,16 +51,22 @@ let audioCtx, analyser, freqData, prevFreq, timeData, maxBin;
 let source = null;
 let audioEl = null;
 let micStream = null;
-let size = 600;
-let scale = 1;
+const size = LOGICAL;
+const scale = LOGICAL / 600;
 let strokes = [];
 let liveStroke = null;
 let strokeCount = 0;
-let sourceLabel = 'Choose a sound source to begin';
 
 let currentBrush = 'auto';
 let paletteIndex = 0;
 let brushSize = 1;
+
+// placard
+let pieceTitle = 'Untitled';
+let brushesUsed = new Set();
+let paintSeconds = 0;
+let lastTick = null;
+let shownSecond = -1;
 
 // sound tracking
 let fluxAvg = 0;
@@ -87,13 +105,45 @@ function varyColor(rgb, amount) {
   return rgbStr(v > 0 ? mix(rgb, [255, 255, 255], v) : mix(rgb, [0, 0, 0], -v));
 }
 
+// ---------- Placard & status ----------
+function formatTime(sec) {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+// ['Sound', 'oil', 'ink'] -> "Sound, oil and ink"
+function joinList(items) {
+  if (items.length <= 1) return items.join('');
+  return items.slice(0, -1).join(', ') + ' and ' + items[items.length - 1];
+}
+
+function updatePlacard() {
+  plTitle.textContent = pieceTitle;
+  const media = [...brushesUsed].map(b => MEDIUM_NAMES[b]);
+  plMedium.textContent = `${joinList(['Sound', ...media])} on paper, ${new Date().getFullYear()}`;
+  plStrokes.textContent = `${strokeCount} ${strokeCount === 1 ? 'stroke' : 'strokes'}`;
+  plTime.textContent = formatTime(paintSeconds);
+  plPalette.textContent = `${PALETTES[paletteIndex].name} palette`;
+}
+
+function setStatus(text, live) {
+  statusText.textContent = text;
+  statusDot.classList.toggle('live', live);
+}
+
+// "my_song-final.mp3" -> "my song final"
+function titleFromFile(name) {
+  return name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ').trim() || 'Untitled';
+}
+
 // ---------- Brush & palette pickers ----------
 function buildPickers() {
-  BRUSHES.forEach(b => {
+  BRUSHES.forEach((b, i) => {
     const btn = document.createElement('button');
     btn.className = 'pick';
     btn.textContent = b.label;
-    btn.title = b.hint;
+    btn.title = `${b.hint} (key ${i + 1})`;
     btn.dataset.id = b.id;
     btn.addEventListener('click', () => setBrush(b.id));
     brushPicker.appendChild(btn);
@@ -131,18 +181,16 @@ function setBrush(id) {
 function setPalette(i) {
   paletteIndex = i;
   refreshPickers();
+  updatePlacard();
 }
 
 // ---------- Canvas setup ----------
+// The canvas always paints at the same resolution; CSS scales it to fit the screen,
+// so resizing or rotating the device never clears or distorts the painting.
 function setupCanvas() {
-  size = Math.min(window.innerWidth - 32, 700);
-  scale = size / 600;
-  const dpr = window.devicePixelRatio || 1;
-  canvas.style.width = size + 'px';
-  canvas.style.height = size + 'px';
-  canvas.width = size * dpr;
-  canvas.height = size * dpr;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  canvas.width = RESOLUTION;
+  canvas.height = RESOLUTION;
+  ctx.setTransform(RESOLUTION / LOGICAL, 0, 0, RESOLUTION / LOGICAL, 0, 0);
   clearCanvas();
 }
 
@@ -153,19 +201,19 @@ function clearCanvas() {
   strokes = [];
   liveStroke = null;
   strokeCount = 0;
+  brushesUsed.clear();
+  paintSeconds = 0;
+  shownSecond = -1;
+  updatePlacard();
 }
 
 // Tiny light and dark specks so the canvas feels like real paper
 function addPaperGrain() {
-  const specks = Math.floor((size * size) / 25);
+  const specks = Math.floor((size * size) / 40);
   for (let i = 0; i < specks; i++) {
     ctx.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,0.035)' : 'rgba(255,255,255,0.08)';
     ctx.fillRect(Math.random() * size, Math.random() * size, 1, 1);
   }
-}
-
-function updateStatus() {
-  statusEl.textContent = `${sourceLabel} · 🎨 ${strokeCount} strokes`;
 }
 
 // ---------- Audio setup ----------
@@ -189,6 +237,7 @@ function stopCurrentSource() {
   if (audioEl) { audioEl.pause(); audioEl = null; }
   if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
   source = null;
+  micBtn.classList.remove('active');
 }
 
 function resetTracking() {
@@ -211,10 +260,12 @@ async function startMic() {
     });
     source = audioCtx.createMediaStreamSource(micStream);
     source.connect(analyser); // not to speakers, to avoid feedback
-    sourceLabel = '🎤 Listening';
-    updateStatus();
+    micBtn.classList.add('active');
+    pieceTitle = 'Untitled (live study)';
+    updatePlacard();
+    setStatus('Listening. Clap, hum, whistle, or play something', true);
   } catch (err) {
-    statusEl.textContent = 'Microphone access was blocked.';
+    setStatus('Microphone access was blocked', false);
     console.error(err);
   }
 }
@@ -228,12 +279,14 @@ function startFile(file) {
   source.connect(analyser);
   source.connect(audioCtx.destination); // so you can hear it
   audioEl.play();
-  sourceLabel = `🎵 ${file.name}`;
-  updateStatus();
-  audioEl.onended = () => {
-    sourceLabel = '✅ Done! Save your painting';
-    updateStatus();
-  };
+  pieceTitle = titleFromFile(file.name);
+  updatePlacard();
+  setStatus('Now painting', true);
+  audioEl.onended = () => setStatus('Finished. Acquire your piece', false);
+}
+
+function isPainting() {
+  return !!micStream || (audioEl && !audioEl.paused);
 }
 
 // ---------- Listening: turn raw audio into features ----------
@@ -530,10 +583,18 @@ function stepStroke(s, f, isLive) {
 // ---------- Main loop ----------
 function draw() {
   requestAnimationFrame(draw);
-  if (!analyser || !source) return;
-
-  const f = analyze();
   const now = performance.now();
+
+  // painting timer for the placard
+  if (lastTick !== null && isPainting()) paintSeconds += (now - lastTick) / 1000;
+  lastTick = now;
+  if (Math.floor(paintSeconds) !== shownSecond) {
+    shownSecond = Math.floor(paintSeconds);
+    plTime.textContent = formatTime(paintSeconds);
+  }
+
+  if (!analyser || !source) return;
+  const f = analyze();
 
   // A "new sound" = the spectrum suddenly changed more than usual
   const isOnset =
@@ -550,7 +611,8 @@ function draw() {
     strokes.push(liveStroke);
     startMark(liveStroke, f);
     strokeCount++;
-    updateStatus();
+    brushesUsed.add(liveStroke.brush);
+    updatePlacard();
   } else if (liveStroke && f.rms < f.gate * 0.8) {
     endStroke(liveStroke); // sound stopped, so lift the brush
     liveStroke = null;
@@ -562,20 +624,30 @@ function draw() {
 
 // ---------- Controls ----------
 micBtn.addEventListener('click', startMic);
+
 fileInput.addEventListener('change', e => {
   if (e.target.files[0]) startFile(e.target.files[0]);
   e.target.value = ''; // allows re-uploading the same song
 });
-clearBtn.addEventListener('click', () => {
-  clearCanvas();
-  updateStatus();
+
+// let keyboard users open the file picker with Enter or Space
+uploadBtn.addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    fileInput.click();
+  }
 });
+
+clearBtn.addEventListener('click', clearCanvas);
+
 saveBtn.addEventListener('click', () => {
+  const slug = pieceTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'untitled';
   const link = document.createElement('a');
-  link.download = 'hueverb.png';
+  link.download = `hueverb-${slug}.png`;
   link.href = canvas.toDataURL('image/png');
   link.click();
 });
+
 sizeSlider.addEventListener('input', () => {
   brushSize = parseFloat(sizeSlider.value);
 });
@@ -589,5 +661,4 @@ document.addEventListener('keydown', e => {
 
 buildPickers();
 setupCanvas();
-updateStatus();
 draw();

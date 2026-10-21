@@ -3,44 +3,72 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hueverb — Turn Sound into Art</title>
+  <title>Hueverb — A Gallery of Heard Things</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header>
-    <h1>Hueverb</h1>
-    <p>Play a song or use your mic, and watch it paint.</p>
+  <header class="site-header">
+    <h1 class="logo">Hueverb</h1>
+    <p class="tagline">a gallery of heard things</p>
   </header>
 
-  <div class="controls">
-    <button id="micBtn">🎤 Use Microphone</button>
-    <label class="file-label">
-      🎵 Upload Audio
-      <input type="file" id="fileInput" accept="audio/*" hidden />
-    </label>
-    <button id="clearBtn">🧹 Clear</button>
-    <button id="saveBtn">💾 Save PNG</button>
-  </div>
+  <main class="gallery">
+    <section class="artwork" aria-label="Canvas">
+      <div class="frame">
+        <div class="mat">
+          <canvas id="canvas" aria-label="Painting generated from sound"></canvas>
+        </div>
+      </div>
+      <p class="now-playing">
+        <span id="statusDot" class="dot"></span>
+        <span id="statusText">Choose a sound to begin</span>
+      </p>
+    </section>
 
-  <div class="toolbar">
-    <div class="tool-group">
-      <span class="tool-label">Brush</span>
-      <div id="brushPicker" class="picker"></div>
-    </div>
-    <div class="tool-group">
-      <span class="tool-label">Palette</span>
-      <div id="palettePicker" class="picker"></div>
-    </div>
-    <div class="tool-group">
-      <span class="tool-label">Size</span>
-      <input type="range" id="sizeSlider" min="0.4" max="2" step="0.1" value="1" />
-    </div>
-  </div>
+    <aside class="side">
+      <div class="placard">
+        <h2 id="plTitle" class="pl-title">Untitled</h2>
+        <p id="plMedium" class="pl-medium">Sound on paper</p>
+        <p class="pl-meta"><span id="plStrokes">0 strokes</span> · <span id="plTime">0:00</span></p>
+        <p id="plPalette" class="pl-palette">Kandinsky palette</p>
+      </div>
 
-  <p id="status">Choose a sound source to begin.</p>
-  <p class="hint">Shortcuts: <kbd>1</kbd>–<kbd>5</kbd> brushes · <kbd>P</kbd> next palette</p>
+      <nav class="actions" aria-label="Actions">
+        <button id="micBtn" class="link-btn">Listen</button>
+        <label id="uploadBtn" class="link-btn" tabindex="0">
+          Upload a track
+          <input type="file" id="fileInput" accept="audio/*" hidden />
+        </label>
+        <button id="clearBtn" class="link-btn">New canvas</button>
+        <button id="saveBtn" class="link-btn accent">Acquire →</button>
+      </nav>
 
-  <canvas id="canvas"></canvas>
+      <div class="tools">
+        <div class="tool">
+          <span class="tool-label">Brush</span>
+          <div id="brushPicker" class="picker"></div>
+        </div>
+        <div class="tool">
+          <span class="tool-label">Palette</span>
+          <div id="palettePicker" class="picker palette-picker"></div>
+        </div>
+        <div class="tool">
+          <label class="tool-label" for="sizeSlider">Brush size</label>
+          <input type="range" id="sizeSlider" min="0.4" max="2" step="0.1" value="1" />
+        </div>
+      </div>
+
+      <p class="hint">Keys 1–5 switch brushes · P changes palette</p>
+    </aside>
+  </main>
+
+  <footer class="site-footer">
+    <span>Hueverb — every sound leaves a mark</span>
+    <span>Made with the Web Audio API and Canvas</span>
+  </footer>
 
   <script src="script.js"></script>
 </body>
