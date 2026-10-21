@@ -12,7 +12,16 @@ const PAPER = '#f3eee4';        // canvas background color
 const SENSITIVITY = 1.6;        // lower = more strokes, higher = fewer (try 1.3–2.2)
 const MIN_GAP_MS = 120;         // minimum time between new strokes
 const MAX_STROKE_FRAMES = 240;  // longest a single stroke can flow (~4 seconds)
-const BRISTLES = 7;             // number of "hairs" in each brush stroke
+const BRISTLES = 26;            // number of "hairs" in each brush
+
+// Artist-inspired palettes: deep colors first (low sounds), bright last (high sounds)
+const PALETTES = [
+  { name: 'Kandinsky', colors: ['#1d3557', '#111111', '#e63946', '#2a9d8f', '#f1c453'] },
+  { name: 'Monet',     colors: ['#2d4a7a', '#5b8bb5', '#7fa886', '#d98c7a', '#e8c27a'] },
+  { name: 'Matisse',   colors: ['#0b3d91', '#ef476f', '#ff6f3c', '#06a77d', '#ffd166'] },
+  { name: 'Ukiyo-e',   colors: ['#1b2a49', '#2f5d7c', '#6b8f9c', '#b5442c', '#d9a441'] },
+  { name: 'Sunset',    colors: ['#3d1e6d', '#8b3fa8', '#e8577e', '#f99e4c', '#f9c74f'] }
+];
 
 // ---------- State ----------
 let audioCtx, analyser, freqData, prevFreq, timeData, maxBin;
@@ -25,7 +34,7 @@ let style = {};
 let strokes = [];
 let liveStroke = null;
 let strokeCount = 0;
-let sourceLabel = '';
+let sourceLabel = 'Choose a sound source to begin';
 
 // sound tracking
 let fluxAvg = 0;
@@ -35,13 +44,34 @@ let lastOnset = 0;
 
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 
+// ---------- Color helpers ----------
+function hexToRgb(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function mix(c1, c2, t) {
+  return c1.map((v, i) => Math.round(v + (c2[i] - v) * t));
+}
+
+// Pick a palette color based on pitch, with some randomness for variety
+function pickColor(pitch) {
+  const p = style.colors;
+  const idx = clamp(Math.round(pitch * (p.length - 1) + (Math.random() - 0.5) * 1.5), 0, p.length - 1);
+  return p[idx];
+}
+
+// Slightly lighter or darker version of a color, for natural streaks
+function varyColor(rgb, amount) {
+  const v = (Math.random() - 0.5) * amount;
+  const c = v > 0 ? mix(rgb, [255, 255, 255], v) : mix(rgb, [0, 0, 0], -v);
+  return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+}
+
 // ---------- Style ----------
-// Each new song (or Clear) gets its own color palette
 function newStyle() {
-  style = {
-    baseHue: Math.random() * 360,         // color for the lowest sounds
-    hueRange: 100 + Math.random() * 140   // how far colors shift for high sounds
-  };
+  const palette = PALETTES[Math.floor(Math.random() * PALETTES.length)];
+  style = { name: palette.name, colors: palette.colors.map(hexToRgb) };
 }
 
 // ---------- Canvas setup ----------
@@ -60,13 +90,23 @@ function setupCanvas() {
 function clearCanvas() {
   ctx.fillStyle = PAPER;
   ctx.fillRect(0, 0, size, size);
+  addPaperGrain();
   strokes = [];
   liveStroke = null;
   strokeCount = 0;
 }
 
+// Tiny light and dark specks so the canvas feels like real paper
+function addPaperGrain() {
+  const specks = Math.floor((size * size) / 25);
+  for (let i = 0; i < specks; i++) {
+    ctx.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,0.035)' : 'rgba(255,255,255,0.08)';
+    ctx.fillRect(Math.random() * size, Math.random() * size, 1, 1);
+  }
+}
+
 function updateStatus() {
-  statusEl.textContent = `${sourceLabel} · 🎨 ${strokeCount} strokes`;
+  statusEl.textContent = `${sourceLabel} · 🎨 ${strokeCount} strokes · ${style.name} palette`;
 }
 
 // ---------- Audio setup ----------
@@ -113,7 +153,7 @@ async function startMic() {
     });
     source = audioCtx.createMediaStreamSource(micStream);
     source.connect(analyser); // not to speakers, to avoid feedback
-    sourceLabel = '🎤 Listening… clap, hum, whistle, talk';
+    sourceLabel = '🎤 Listening';
     updateStatus();
   } catch (err) {
     statusEl.textContent = 'Microphone access was blocked.';
@@ -198,16 +238,23 @@ function createStroke(f) {
   const x = margin + Math.random() * (size - margin * 2);
   // high sounds start near the top, low sounds near the bottom
   const y = clamp(
-    size * (0.85 - f.pitch * 0.7) + (Math.random() - 0.5) * size * 0.25,
+    size * (0.85 - f.pitch * 0.7) + (Math.random() - 0.5) * size * 0.3,
     margin, size - margin
   );
 
+  const base = pickColor(f.pitch);
+  const load = 0.6 + f.loud * 0.4; // louder sounds load more paint onto the brush
+
   const bristles = [];
   for (let i = 0; i < BRISTLES; i++) {
+    // average of 3 randoms clusters hairs toward the middle, like a real brush
+    const offset = (Math.random() + Math.random() + Math.random()) / 3 - 0.5;
     bristles.push({
-      offset: i / (BRISTLES - 1) - 0.5 + (Math.random() - 0.5) * 0.1,
-      alpha: 0.5 + Math.random() * 0.4,
-      thick: 0.5 + Math.random() * 0.8,
+      offset: offset * 1.1,
+      thick: 0.6 + Math.random() * 0.9,
+      color: varyColor(base, 0.35),
+      paint: load * (0.5 + Math.random() * 0.5),
+      drain: 0.003 + Math.random() * 0.006,
       lx: x,
       ly: y
     });
@@ -215,31 +262,29 @@ function createStroke(f) {
 
   return {
     x, y,
+    base,
     angle: Math.random() * Math.PI * 2,
-    turn: (Math.random() - 0.5) * 0.08,
-    hue: (style.baseHue + f.pitch * style.hueRange) % 360,
-    sat: 60 + Math.random() * 25,
-    light: 35 + f.pitch * 25,     // low sounds darker, high sounds lighter
+    turn: (Math.random() - 0.5) * 0.06,
     roughness: f.roughness,
     width: 0,
     age: 0,
-    fade: -1,                      // -1 = alive; otherwise counts down to 0
+    fade: -1,   // -1 = alive; otherwise counts down to 0
     bristles
   };
 }
 
 function endStroke(s) {
-  if (s && s.fade < 0) s.fade = 10; // lift the brush gradually
+  if (s && s.fade < 0) s.fade = 12; // lift the brush gradually
 }
 
-// A little paint splatter where each new sound starts
+// Paint splatter, only for sharp or noisy sounds (claps, "ssss", cymbals)
 function splat(s, f) {
-  const drops = Math.floor(3 + f.loud * 10 + f.roughness * 6);
+  const drops = Math.floor(f.loud * 4 + f.roughness * 10);
   for (let i = 0; i < drops; i++) {
     const a = Math.random() * Math.PI * 2;
-    const d = Math.random() ** 2 * (10 + f.loud * 50) * scale;
-    const r = (0.5 + Math.random() * (1 + f.loud * 4)) * scale;
-    ctx.fillStyle = `hsla(${s.hue}, ${s.sat}%, ${s.light}%, ${0.4 + Math.random() * 0.5})`;
+    const d = Math.random() ** 2 * (15 + f.loud * 45) * scale;
+    const r = (0.6 + Math.random() * (0.8 + f.loud * 2.5)) * scale;
+    ctx.fillStyle = varyColor(s.base, 0.3);
     ctx.beginPath();
     ctx.arc(s.x + Math.cos(a) * d, s.y + Math.sin(a) * d, r, 0, Math.PI * 2);
     ctx.fill();
@@ -252,48 +297,58 @@ function stepStroke(s, f, isLive) {
 
   // width follows loudness while the sound lasts, then tapers off
   if (s.fade >= 0) {
-    s.width *= 0.8;
+    s.width *= 0.85;
     if (s.fade > 0) s.fade--;
   } else {
-    const target = (3 + f.loud * 26) * scale * Math.min(1, s.age / 6);
-    s.width += (target - s.width) * 0.3;
+    const target = (4 + f.loud * 30) * scale * Math.min(1, s.age / 5);
+    s.width += (target - s.width) * 0.25;
   }
 
-  // wander: smooth curves, plus jitter for noisy sounds
-  s.turn = clamp(s.turn + (Math.random() - 0.5) * 0.01, -0.07, 0.07);
-  s.angle += s.turn + (Math.random() - 0.5) * s.roughness * 0.8;
+  // smooth, gestural curves, with a little shake for noisy sounds
+  s.turn = clamp(s.turn + (Math.random() - 0.5) * 0.006, -0.05, 0.05);
+  s.angle += s.turn + (Math.random() - 0.5) * s.roughness * 0.5;
 
   // steer back toward the middle near the edges
   const margin = size * 0.08;
   if (s.x < margin || s.x > size - margin || s.y < margin || s.y > size - margin) {
     const toCenter = Math.atan2(size / 2 - s.y, size / 2 - s.x);
     const diff = Math.atan2(Math.sin(toCenter - s.angle), Math.cos(toCenter - s.angle));
-    s.angle += diff * 0.15;
+    s.angle += diff * 0.12;
   }
 
   const speed = (1.5 + (isLive ? f.loud : 0.3) * 5) * scale;
   s.x += Math.cos(s.angle) * speed;
   s.y += Math.sin(s.angle) * speed;
 
-  // paint each bristle side by side across the stroke
+  // paint each bristle
   const nx = -Math.sin(s.angle);
   const ny = Math.cos(s.angle);
-  const jitter = s.roughness * s.width * 0.25;
+  const jitter = s.roughness * s.width * 0.15;
   ctx.lineCap = 'round';
+
   for (const b of s.bristles) {
     const bx = s.x + nx * b.offset * s.width + (Math.random() - 0.5) * jitter;
     const by = s.y + ny * b.offset * s.width + (Math.random() - 0.5) * jitter;
-    ctx.strokeStyle = `hsla(${s.hue}, ${s.sat}%, ${s.light}%, ${b.alpha})`;
-    ctx.lineWidth = Math.max(0.4, (s.width / BRISTLES) * 1.8 * b.thick);
-    ctx.beginPath();
-    ctx.moveTo(b.lx, b.ly);
-    ctx.lineTo(bx, by);
-    ctx.stroke();
+
+    b.paint -= b.drain * (0.5 + Math.random());
+
+    // Dry brush: bristles low on paint start skipping, then stop completely
+    const dry = b.paint <= 0 || (b.paint < 0.25 && Math.random() > b.paint * 4);
+
+    if (!dry) {
+      ctx.strokeStyle = b.color;
+      ctx.lineWidth = Math.max(0.5, s.width * 0.09 * b.thick);
+      ctx.beginPath();
+      ctx.moveTo(b.lx, b.ly);
+      ctx.lineTo(bx, by);
+      ctx.stroke();
+    }
     b.lx = bx;
     b.ly = by;
   }
 
-  if (s.age > MAX_STROKE_FRAMES) endStroke(s);
+  // end the stroke when it's too long or every bristle has run dry
+  if (s.age > MAX_STROKE_FRAMES || s.bristles.every(b => b.paint <= 0)) endStroke(s);
   return s.fade !== 0;
 }
 
@@ -337,8 +392,9 @@ fileInput.addEventListener('change', e => {
   e.target.value = ''; // allows re-uploading the same song
 });
 clearBtn.addEventListener('click', () => {
-  clearCanvas();
   newStyle();
+  clearCanvas();
+  updateStatus();
 });
 saveBtn.addEventListener('click', () => {
   const link = document.createElement('a');
@@ -349,4 +405,5 @@ saveBtn.addEventListener('click', () => {
 
 newStyle();
 setupCanvas();
+updateStatus();
 draw();
